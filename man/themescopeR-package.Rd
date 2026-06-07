@@ -6,6 +6,8 @@
 \alias{themescopeR-package}
 \title{themescopeR: Social Representation Analysis via Semantic Network Mapping}
 \description{
+\if{html}{\figure{logo.svg}{options: style='float: right' alt='logo' width='120'}}
+
 Implements the ThemeScope framework for detecting and visualising social representations in large-scale digital text corpora. From raw documents it builds, via 'udpipe' annotation, sentence-level word co-occurrence networks and derives two community-level indicators grounded in Social Representation Theory: the Prototypical Salience Index (PSI) for anchoring and the Concreteness Score (CS) for objectification. Communities are located in a two-dimensional, theoretically grounded representational map. The whole pipeline is usable from the R console; an optional 'shiny' graphical interface calls the same exported functions.
 }
 \seealso{

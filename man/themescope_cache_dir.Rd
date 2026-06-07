@@ -16,6 +16,8 @@ language models are cached, so they are downloaded only once. Defaults to
 \code{options(themescopeR.model_dir = "/path")}.
 }
 \examples{
+\dontrun{
 themescope_cache_dir()
+}
 
 }

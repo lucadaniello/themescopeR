@@ -330,7 +330,8 @@ server <- function(input, output, session) {
         collection(coll); tokens_data(NULL); annot_key(NULL)
         showNotification(sprintf("Loaded %d raw documents.", nrow(coll)), type = "message")
       } else {
-        df <- data.table::fread(path, data.table = FALSE)
+        sep <- if (tolower(tools::file_ext(input$file_upload$name)) == "tsv") "\t" else ","
+        df <- utils::read.csv(path, sep = sep, stringsAsFactors = FALSE, check.names = FALSE)
         if (!"lemma" %in% names(df) && "token" %in% names(df)) df$lemma <- df$token
         validate_tokens_df(df)
         for (c0 in intersect(c("doc_id", "sentence_id", "lemma", "upos"), names(df)))

@@ -23,7 +23,6 @@ Depends:
     R (>= 4.1.0)
 Imports:
     cli (>= 3.6.0),
-    data.table,
     dplyr (>= 1.1.0),
     ggplot2 (>= 3.4.0),
     ggrepel (>= 0.9.0),
@@ -35,8 +34,6 @@ Imports:
     readxl,
     rlang,
     stats,
-    stringr,
-    tidyr,
     tools,
     udpipe (>= 0.8.11),
     utils
@@ -44,10 +41,8 @@ Suggests:
     bslib,
     DT,
     ggraph (>= 2.1.0),
-    htmlwidgets,
     knitr,
     plotly,
-    purrr,
     rmarkdown,
     shiny,
     shinycssloaders,

@@ -15,7 +15,9 @@
 #' @return A character path to the cache directory.
 #'
 #' @examples
+#' \dontrun{
 #' themescope_cache_dir()
+#' }
 #'
 #' @export
 themescope_cache_dir <- function() {
