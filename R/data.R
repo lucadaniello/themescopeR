@@ -1,0 +1,22 @@
+#' Brysbaert et al. (2014) concreteness norms
+#'
+#' A lexicon of concreteness ratings for English words, from crowd-sourced human
+#' judgements on a 1--5 scale (1 = highly abstract, 5 = highly concrete). Used by
+#' [compute_cs()] and [themescope()] to compute the Concreteness Score (CS),
+#' operationalising objectification in Social Representation Theory.
+#'
+#' @format A data frame with two columns:
+#' \describe{
+#'   \item{word}{Character. The English word (lower-case).}
+#'   \item{conc.m}{Numeric. Mean concreteness rating on a 1--5 scale.}
+#' }
+#'
+#' @source Brysbaert, M., Warriner, A. B., & Kuperman, V. (2014). Concreteness
+#'   ratings for 40 thousand generally known English word lemmas.
+#'   \emph{Behavior Research Methods}, 46(3), 904--911.
+#'   \doi{10.3758/s13428-013-0403-5}
+#'
+#' @examples
+#' data(brysbaert)
+#' head(brysbaert)
+"brysbaert"

@@ -1,0 +1,58 @@
+Package: themescopeR
+Title: Social Representation Analysis via Semantic Network Mapping
+Version: 0.1.0
+Authors@R: c(
+    person("Maria", "Spano", , "maria.spano@unina.it", role = "aut"),
+    person("Michelangelo", "Misuraca", , "mmisuraca@unisa.it", role = "aut"),
+    person("Luca", "D'Aniello", , "luca.daniello@unina.it", role = c("aut", "cre")))
+Description: Implements the ThemeScope framework for detecting and visualising
+    social representations in large-scale digital text corpora. From raw
+    documents it builds, via 'udpipe' annotation, sentence-level word
+    co-occurrence networks and derives two community-level indicators grounded
+    in Social Representation Theory: the Prototypical Salience Index (PSI) for
+    anchoring and the Concreteness Score (CS) for objectification. Communities
+    are located in a two-dimensional, theoretically grounded representational
+    map. The whole pipeline is usable from the R console; an optional 'shiny'
+    graphical interface calls the same exported functions.
+License: MIT + file LICENSE
+URL: https://github.com/lucadaniello/themescopeR
+BugReports: https://github.com/lucadaniello/themescopeR/issues
+Encoding: UTF-8
+LazyData: true
+Depends:
+    R (>= 4.1.0)
+Imports:
+    cli (>= 3.6.0),
+    data.table,
+    dplyr (>= 1.1.0),
+    ggplot2 (>= 3.4.0),
+    ggrepel (>= 0.9.0),
+    grDevices,
+    igraph (>= 2.0.0),
+    Matrix (>= 1.6.0),
+    methods,
+    readr,
+    readxl,
+    rlang,
+    stats,
+    stringr,
+    tidyr,
+    tools,
+    udpipe (>= 0.8.11),
+    utils
+Suggests:
+    bslib,
+    DT,
+    ggraph (>= 2.1.0),
+    htmlwidgets,
+    knitr,
+    plotly,
+    purrr,
+    rmarkdown,
+    shiny,
+    shinycssloaders,
+    testthat (>= 3.0.0),
+    visNetwork
+Roxygen: list(markdown = TRUE)
+Config/testthat/edition: 3
+Config/roxygen2/version: 8.0.0
