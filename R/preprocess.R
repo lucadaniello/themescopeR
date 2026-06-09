@@ -98,6 +98,19 @@ ts_list_models <- function(refresh = FALSE) {
 #' already cached it is **not** re-downloaded, so models are fetched only once
 #' and reused across analyses.
 #'
+#' @details
+#' The updated models and lexicons are curated and maintained by
+#' **Massimo Aria** in the `tall.language.models` repository, part of the
+#' \href{https://tall-app.com}{TALL} project. We gratefully acknowledge that work
+#' and redistribute nothing here: models are fetched on demand from the source
+#' repository.
+#'
+#' To explore which models are available — together with their treebanks,
+#' contributors, descriptions, corpus sizes and Universal Dependencies hub
+#' pages — use [ts_list_models()] (whose returned data frame includes
+#' `description` and `hub_page_link` columns), or browse the repository directly:
+#' \url{https://github.com/massimoaria/tall.language.models}.
+#'
 #' @param language Character language name (e.g. `"english"`, `"italian"`). See
 #'   [ts_list_models()].
 #' @param treebank Optional treebank name (e.g. `"EWT"`, `"ISDT"`). If `NULL`,
@@ -106,6 +119,12 @@ ts_list_models <- function(refresh = FALSE) {
 #' @param overwrite Logical. Re-download even if cached (default `FALSE`).
 #'
 #' @return The path to the cached `.udpipe` model file (invisibly).
+#'
+#' @seealso [ts_list_models()] for the full catalogue (descriptions and links).
+#'
+#' @references
+#' Aria, M. \emph{tall.language.models}: updated UDPipe models and lexicons for
+#' TALL. \url{https://github.com/massimoaria/tall.language.models}
 #'
 #' @examples
 #' \dontrun{
@@ -187,8 +206,14 @@ ts_model_path <- function(language, treebank = NULL, model_dir = themescope_cach
 #' @param batch_size Integer. Documents processed per batch (default `500`).
 #' @param verbose Logical. Print progress messages (default `TRUE`).
 #'
-#' @return A data frame with columns `doc_id`, `sentence_id` (globally unique),
-#'   `token`, `lemma` (lower-cased) and `upos`.
+#' @return The **complete** \pkg{udpipe} annotation as a data frame (one row per
+#'   token), with all columns returned by [udpipe::udpipe_annotate()] preserved
+#'   (`doc_id`, `paragraph_id`, `sentence_id`, `sentence`, `token_id`, `token`,
+#'   `lemma`, `upos`, `xpos`, `feats`, `head_token_id`, `dep_rel`, ...). Nothing
+#'   is dropped, so the full linguistic annotation is available for inspection.
+#'   Downstream functions ([build_vocab()], [build_cooccurrence_matrix()]) select
+#'   and case-fold the relevant word column (`token` or `lemma`) themselves, and
+#'   use `doc_id` + `sentence_id` as the sentence key.
 #'
 #' @examples
 #' \dontrun{
@@ -244,19 +269,12 @@ preprocess_texts <- function(collection,
     chunks[[i]] <- as.data.frame(ann, detailed = FALSE)
   }
 
-  result <- do.call(rbind, chunks)
-
-  result$sentence_id <- paste0(result$doc_id, "_s", result$sentence_id)
-  no_lemma <- is.na(result$lemma) | result$lemma == ""
-  result$lemma[no_lemma] <- result$token[no_lemma]
-  result$lemma <- tolower(result$lemma)
-
-  out <- result[, c("doc_id", "sentence_id", "token", "lemma", "upos"), drop = FALSE]
+  out <- do.call(rbind, chunks)
   rownames(out) <- NULL
 
   themescope_progress(
     paste0("Annotation complete: ", nrow(out), " tokens across ",
-           length(unique(out$sentence_id)), " sentences."), verbose
+           length(unique(paste(out$doc_id, out$sentence_id))), " sentences."), verbose
   )
 
   out

@@ -11,29 +11,30 @@ build_cooccurrence_network(
 )
 }
 \arguments{
-\item{as_matrix}{Symmetric sparse \code{Matrix} of Association Strength
-values, from \code{\link[=compute_association_strength]{compute_association_strength()}}.}
+\item{as_matrix}{Symmetric sparse \code{Matrix} of edge weights (e.g. the
+\code{cooc_matrix} from \code{\link[=build_cooccurrence_matrix]{build_cooccurrence_matrix()}} or the output of
+\code{\link[=normalize_cooccurrence]{normalize_cooccurrence()}}).}
 
-\item{threshold_percentile}{Numeric in \eqn{(0, 1)}. Quantile of non-zero AS
-values used as the minimum edge weight (default \code{0.98}). This is an
+\item{threshold_percentile}{Numeric in \eqn{(0, 1)}. Quantile of non-zero
+weights used as the minimum edge weight (default \code{0.98}). This is an
 implementation choice for network sparsification, not part of the metric
 definitions; tune it for your corpus.}
 
 \item{verbose}{Logical. Print progress messages (default \code{TRUE}).}
 }
 \value{
-An undirected weighted \code{igraph} object: \code{E(graph)$weight} holds
-AS values and \code{V(graph)$name} the term labels. Only terms with at least one
-retained edge appear as vertices.
+An undirected weighted \code{igraph} object; \code{E(graph)$weight} holds
+the edge weights and \code{V(graph)$name} the term labels. Only terms with at
+least one retained edge appear as vertices.
 }
 \description{
-Constructs an undirected weighted \code{igraph} graph from an Association
-Strength matrix, retaining only edges whose AS value exceeds the
-\code{threshold_percentile} quantile of all non-zero AS values.
+Constructs an undirected weighted \code{igraph} graph from a similarity
+matrix, retaining only edges whose weight exceeds the \code{threshold_percentile}
+quantile of all non-zero weights.
 }
 \examples{
 \dontrun{
-net <- build_cooccurrence_network(as_mat, threshold_percentile = 0.98)
+net <- build_cooccurrence_network(cooc$cooc_matrix, threshold_percentile = 0.98)
 }
 
 }

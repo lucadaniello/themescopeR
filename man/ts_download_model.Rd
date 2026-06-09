@@ -31,10 +31,30 @@ language-model collection into \code{\link[=themescope_cache_dir]{themescope_cac
 already cached it is \strong{not} re-downloaded, so models are fetched only once
 and reused across analyses.
 }
+\details{
+The updated models and lexicons are curated and maintained by
+\strong{Massimo Aria} in the \code{tall.language.models} repository, part of the
+\href{https://tall-app.com}{TALL} project. We gratefully acknowledge that work
+and redistribute nothing here: models are fetched on demand from the source
+repository.
+
+To explore which models are available — together with their treebanks,
+contributors, descriptions, corpus sizes and Universal Dependencies hub
+pages — use \code{\link[=ts_list_models]{ts_list_models()}} (whose returned data frame includes
+\code{description} and \code{hub_page_link} columns), or browse the repository directly:
+\url{https://github.com/massimoaria/tall.language.models}.
+}
 \examples{
 \dontrun{
 path <- ts_download_model("english")
 path <- ts_download_model("italian", treebank = "ISDT")
 }
 
+}
+\references{
+Aria, M. \emph{tall.language.models}: updated UDPipe models and lexicons for
+TALL. \url{https://github.com/massimoaria/tall.language.models}
+}
+\seealso{
+\code{\link[=ts_list_models]{ts_list_models()}} for the full catalogue (descriptions and links).
 }

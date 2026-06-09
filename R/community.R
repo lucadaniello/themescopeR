@@ -5,13 +5,17 @@
 #'
 #' @param graph An undirected weighted \code{igraph} object, e.g. from
 #'   [build_cooccurrence_network()].
-#' @param algorithm Character. `"walktrap"` (default) or `"louvain"`.
+#' @param algorithm Character. One of `"walktrap"` (default), `"louvain"` or
+#'   `"leiden"`.
 #' @param steps Integer. Number of steps for the walktrap random walk (default
-#'   `4`). Ignored when `algorithm = "louvain"`.
+#'   `4`). Used only when `algorithm = "walktrap"`.
+#' @param resolution Numeric resolution parameter for `"louvain"` and `"leiden"`
+#'   (default `1`); higher values yield more, smaller communities. Ignored by
+#'   walktrap.
 #' @param min_size Integer. Minimum number of members for a community to be
 #'   retained; smaller communities are assigned `NA` membership (default `10`).
 #' @param seed Optional integer. If supplied, sets the random seed before
-#'   community detection for reproducibility (Louvain is stochastic).
+#'   community detection for reproducibility (Louvain and Leiden are stochastic).
 #' @param verbose Logical. Print a progress message (default `TRUE`).
 #'
 #' @return A named list with:
@@ -26,19 +30,21 @@
 #' @examples
 #' \dontrun{
 #' comm <- detect_communities(net, algorithm = "walktrap", min_size = 10, seed = 1)
+#' comm <- detect_communities(net, algorithm = "leiden", resolution = 1, seed = 1)
 #' }
 #'
 #' @export
 detect_communities <- function(graph,
-                               algorithm = "walktrap",
-                               steps     = 4,
-                               min_size  = 10,
-                               seed      = NULL,
-                               verbose   = TRUE) {
+                               algorithm  = "walktrap",
+                               steps      = 4,
+                               resolution = 1,
+                               min_size   = 10,
+                               seed       = NULL,
+                               verbose    = TRUE) {
   if (!igraph::is_igraph(graph)) {
     cli::cli_abort("{.arg graph} must be an {.cls igraph} object.")
   }
-  algorithm <- match.arg(algorithm, c("walktrap", "louvain"))
+  algorithm <- match.arg(algorithm, c("walktrap", "louvain", "leiden"))
   if (!is.numeric(steps) || steps < 1) {
     cli::cli_abort("{.arg steps} must be a positive integer.")
   }
@@ -48,14 +54,17 @@ detect_communities <- function(graph,
 
   steps    <- as.integer(steps)
   min_size <- as.integer(min_size)
+  weights  <- igraph::E(graph)$weight
 
   if (!is.null(seed)) set.seed(as.integer(seed))
 
-  wt <- if (algorithm == "louvain") {
-    igraph::cluster_louvain(graph, weights = igraph::E(graph)$weight)
-  } else {
-    igraph::cluster_walktrap(graph, steps = steps, weights = igraph::E(graph)$weight)
-  }
+  wt <- switch(algorithm,
+    louvain = igraph::cluster_louvain(graph, weights = weights, resolution = resolution),
+    leiden  = igraph::cluster_leiden(graph, objective_function = "modularity",
+                                     weights = weights, resolution = resolution,
+                                     n_iterations = 3),
+    igraph::cluster_walktrap(graph, steps = steps, weights = weights)
+  )
 
   raw_membership <- igraph::membership(wt)
   vertex_names   <- igraph::V(graph)$name

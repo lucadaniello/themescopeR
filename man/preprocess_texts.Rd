@@ -30,8 +30,14 @@ language name (e.g. \code{"english"}) which is downloaded and cached via
 \item{verbose}{Logical. Print progress messages (default \code{TRUE}).}
 }
 \value{
-A data frame with columns \code{doc_id}, \code{sentence_id} (globally unique),
-\code{token}, \code{lemma} (lower-cased) and \code{upos}.
+The \strong{complete} \pkg{udpipe} annotation as a data frame (one row per
+token), with all columns returned by \code{\link[udpipe:udpipe_annotate]{udpipe::udpipe_annotate()}} preserved
+(\code{doc_id}, \code{paragraph_id}, \code{sentence_id}, \code{sentence}, \code{token_id}, \code{token},
+\code{lemma}, \code{upos}, \code{xpos}, \code{feats}, \code{head_token_id}, \code{dep_rel}, ...). Nothing
+is dropped, so the full linguistic annotation is available for inspection.
+Downstream functions (\code{\link[=build_vocab]{build_vocab()}}, \code{\link[=build_cooccurrence_matrix]{build_cooccurrence_matrix()}}) select
+and case-fold the relevant word column (\code{token} or \code{lemma}) themselves, and
+use \code{doc_id} + \code{sentence_id} as the sentence key.
 }
 \description{
 Tokenises, lemmatises and POS-tags a collection of raw documents using a

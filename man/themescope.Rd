@@ -13,12 +13,16 @@ themescope(
   model = NULL,
   text_col = "text",
   doc_id_col = "doc_id",
+  unit = c("lemma", "token"),
   concreteness_lexicon = brysbaert,
   vocab_size = 1500,
   pos_filter = c("NOUN", "ADJ", "PROPN"),
+  window = c("sentence", "document"),
+  normalization = "association",
   threshold_percentile = 0.98,
   community_algorithm = "walktrap",
   walktrap_steps = 4,
+  resolution = 1,
   min_community_size = 10,
   seed = NULL,
   verbose = TRUE
@@ -28,14 +32,20 @@ themescope(
 
 \method{summary}{themescope}(object, ...)
 
-\method{plot}{themescope}(x, type = c("map", "network"), ...)
+\method{plot}{themescope}(
+  x,
+  type = c("map", "network"),
+  label = c("id", "terms"),
+  n_label_terms = 3,
+  ...
+)
 
 \method{as.data.frame}{themescope}(x, ...)
 }
 \arguments{
-\item{data}{Either a tokens data frame (columns \code{doc_id}, \code{sentence_id},
-\code{upos}, and \code{token}/\code{lemma}) or a raw collection (a \code{text} and \code{doc_id}
-column, e.g. from \code{\link[=read_collection]{read_collection()}}).}
+\item{data}{Either an annotated words data frame (columns \code{doc_id},
+\code{sentence_id}, \code{upos}, and \code{token}/\code{lemma}) or a raw collection (a \code{text}
+and \code{doc_id} column, e.g. from \code{\link[=read_collection]{read_collection()}}).}
 
 \item{model}{Required only when \code{data} is a raw collection: a \pkg{udpipe}
 model object, a path to a \code{.udpipe} file, or a language name (see
@@ -43,20 +53,30 @@ model object, a path to a \code{.udpipe} file, or a language name (see
 
 \item{text_col, doc_id_col}{Column names used when annotating a raw collection.}
 
+\item{unit}{Word unit for the vocabulary: \code{"lemma"} (default) or \code{"token"}.}
+
 \item{concreteness_lexicon}{Data frame with columns \code{"word"} and \code{"conc.m"}.
 Defaults to the bundled \link{brysbaert} lexicon. Pass \code{NULL} to skip CS.}
 
-\item{vocab_size}{Integer. Maximum vocabulary size (default \code{1500}).}
+\item{vocab_size}{Integer or \code{NULL}. Maximum vocabulary size (\code{NULL} = all).}
 
 \item{pos_filter}{Character vector of Universal POS tags (default
 \code{c("NOUN", "ADJ", "PROPN")}).}
 
-\item{threshold_percentile}{Numeric in \eqn{(0, 1)}; AS network threshold
+\item{window}{Co-occurrence unit: \code{"sentence"} (default) or \code{"document"}.}
+
+\item{normalization}{Similarity measure for the co-occurrence matrix:
+\code{"association"} (default), \code{"equivalence"}, \code{"jaccard"}, \code{"salton"},
+\code{"inclusion"} or \code{"frequency"}. See \code{\link[=normalize_cooccurrence]{normalize_cooccurrence()}}.}
+
+\item{threshold_percentile}{Numeric in \eqn{(0, 1)}; network edge threshold
 (default \code{0.98}).}
 
-\item{community_algorithm}{\code{"walktrap"} (default) or \code{"louvain"}.}
+\item{community_algorithm}{\code{"walktrap"} (default), \code{"louvain"} or \code{"leiden"}.}
 
-\item{walktrap_steps}{Integer (default \code{4}); ignored for Louvain.}
+\item{walktrap_steps}{Integer (default \code{4}); used by walktrap only.}
+
+\item{resolution}{Numeric resolution for louvain/leiden (default \code{1}).}
 
 \item{min_community_size}{Integer (default \code{10}).}
 
@@ -71,26 +91,30 @@ Defaults to the bundled \link{brysbaert} lexicon. Pass \code{NULL} to skip CS.}
 \item{object}{A \code{themescope} object.}
 
 \item{type}{Character. \code{"map"} (default) or \code{"network"}.}
+
+\item{label}{Map point labels: \code{"id"} (community id, default) or \code{"terms"}
+(the top terms of each community).}
+
+\item{n_label_terms}{Integer. Number of terms per label when \code{label = "terms"}
+(default \code{3}).}
 }
 \value{
 An S3 object of class \code{"themescope"} with elements \code{graph},
 \code{communities}, \code{membership}, \code{psi}, \code{cs}, \code{presence}, \code{network_stats},
-\code{vocab}, \code{params}, and \code{call}.
+\code{vocab} (a \code{\link[=build_vocab]{build_vocab()}} data frame), \code{params}, and \code{call}.
 }
 \description{
 Executes the complete ThemeScope workflow in a single call. Accepts \strong{either}
-a pre-annotated tokens data frame \strong{or} a raw document collection (in which
-case it is annotated with \pkg{udpipe} via \code{\link[=preprocess_texts]{preprocess_texts()}} first). The
-steps are:
+an annotated words data frame \strong{or} a raw document collection (in which case
+it is annotated with \pkg{udpipe} via \code{\link[=preprocess_texts]{preprocess_texts()}} first). The steps:
 \enumerate{
-\item (Optional) annotate raw texts into tokens.
-\item Build the vocabulary from POS-filtered tokens.
-\item Build the sentence-level co-occurrence matrix and term presence.
-\item Normalise with Association Strength.
-\item Construct a thresholded co-occurrence network.
-\item Detect communities (walktrap by default).
-\item Compute PSI (anchoring) per community.
-\item Compute CS (objectification) per community.
+\item (Optional) annotate raw texts into words.
+\item Build the vocabulary from POS-filtered words (\code{\link[=build_vocab]{build_vocab()}}).
+\item Build the co-occurrence matrix + term presence, with the chosen
+\code{normalization} (\code{\link[=build_cooccurrence_matrix]{build_cooccurrence_matrix()}}).
+\item Construct a thresholded network (\code{\link[=build_cooccurrence_network]{build_cooccurrence_network()}}).
+\item Detect communities (walktrap / louvain / leiden).
+\item Compute PSI (anchoring) and CS (objectification) per community.
 \item Collect network statistics.
 }
 }
@@ -101,7 +125,9 @@ steps are:
 \item \code{summary(themescope)}: Detailed summary with a community statistics table.
 
 \item \code{plot(themescope)}: Plot a \code{themescope} object (\code{type = "map"} or
-\code{"network"}).
+\code{"network"}). With \code{label = "terms"}, communities on the map are labelled
+with their most representative terms (up to \code{n_label_terms}) instead of the
+community id; communities keep the same colour in both views.
 
 \item \code{as.data.frame(themescope)}: Coerce to a tidy community-level data frame (raw and
 z-scored metrics plus quadrant).
@@ -109,9 +135,8 @@ z-scored metrics plus quadrant).
 }}
 \examples{
 \dontrun{
-# From a pre-annotated tokens data frame
-result <- themescope(tokens_df, vocab_size = 1000)
-print(result)
+# From an annotated words data frame
+result <- themescope(words_df, vocab_size = 1500)
 plot(result, type = "map")
 
 # From raw texts (annotated internally)

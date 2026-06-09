@@ -101,16 +101,25 @@ console exactly.
 | Function | Purpose |
 |---|---|
 | `read_collection()` | Import raw documents (single file or zip of many) → tidy data frame |
-| `preprocess_texts()` | udpipe tokenisation / lemmatisation / POS tagging |
+| `preprocess_texts()` | udpipe annotation; returns the **full** udpipe data frame |
 | `ts_download_model()`, `ts_list_models()`, `ts_model_path()` | Manage cached language models |
-| `build_cooccurrence_matrix()`, `compute_association_strength()` | Co-occurrence + Association Strength |
+| `build_vocab()` | Vocabulary as a data frame (`token`/`lemma`, `freq`, `upos`) |
+| `build_cooccurrence_matrix()` | Sentence/document co-occurrence + chosen `normalization` |
+| `normalize_cooccurrence()`, `compute_association_strength()` | Similarity measures (association, jaccard, salton, inclusion, equivalence) |
 | `build_cooccurrence_network()` | Thresholded weighted network |
-| `detect_communities()` | Walktrap / Louvain community detection |
+| `detect_communities()` | Walktrap / Louvain / Leiden community detection |
 | `compute_psi()`, `compute_cs()` | The two SRT indicators |
 | `term_relevance()`, `top_terms()` | Representative terms per community |
-| `plot_themescope()`, `plot_network()` | Strategic diagram and network plots |
-| `themescope()` | End-to-end pipeline (tokens **or** raw text) → `themescope` object |
+| `plot_themescope()`, `plot_network()`, `themescope_colours()` | Map, igraph network, shared palette |
+| `themescope()` | End-to-end pipeline (words **or** raw text) → `themescope` object |
 | `run_themescope()` | Launch the Shiny GUI |
+
+Key options of `themescope()` / `build_cooccurrence_matrix()`: `unit`
+(`"lemma"`/`"token"`), `window` (`"sentence"`/`"document"`), `normalization`
+(`"association"`, `"jaccard"`, `"salton"`, `"inclusion"`, `"equivalence"`,
+`"frequency"`), and `community_algorithm` (`"walktrap"`, `"louvain"`,
+`"leiden"`). On the map, `plot(result, label = "terms")` labels each community
+with its most representative terms (matching colours on the network).
 
 ---
 

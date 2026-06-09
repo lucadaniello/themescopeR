@@ -7,24 +7,18 @@
 compute_association_strength(cooc_matrix, presence)
 }
 \arguments{
-\item{cooc_matrix}{Symmetric sparse \code{Matrix} of co-occurrence counts, as
-returned by \code{\link[=build_cooccurrence_matrix]{build_cooccurrence_matrix()}}.}
+\item{cooc_matrix}{Symmetric sparse \code{Matrix} of co-occurrence counts.}
 
-\item{presence}{Named numeric vector of term presence \eqn{a_t}. Names must
-match the row/column names of \code{cooc_matrix}.}
+\item{presence}{Named numeric vector of term presences \eqn{a_t}.}
 }
 \value{
-A sparse \code{dgCMatrix} of Association Strength values, same dimensions
-as \code{cooc_matrix}.
+A sparse \code{dgCMatrix} of Association Strength values.
 }
 \description{
-Normalises raw sentence co-occurrence counts using the Association Strength
-measure (ThemeScope papers, Eq. 1):
-\deqn{AS(t,t') = \frac{a_{t,t'}}{a_t \cdot a_{t'}},}
-where \eqn{a_{t,t'}} is the number of co-occurring sentences and \eqn{a_t} the
-presence (sentence count) of term \eqn{t}. Values lie in \eqn{[0,1]}; higher
-values indicate stronger association, reducing the bias of highly frequent
-terms.
+Convenience wrapper around \code{\link[=normalize_cooccurrence]{normalize_cooccurrence()}} with
+\code{method = "association"}: \eqn{AS(t,t') = c_{tt'} / (a_t a_{t'})} (ThemeScope
+papers, Eq. 1). Values lie in \eqn{[0,1]}; higher values indicate stronger
+association, reducing the bias of highly frequent terms.
 }
 \examples{
 m <- Matrix::sparseMatrix(
@@ -33,4 +27,7 @@ m <- Matrix::sparseMatrix(
 )
 compute_association_strength(m, c(a = 5, b = 4, c = 2))
 
+}
+\seealso{
+\code{\link[=normalize_cooccurrence]{normalize_cooccurrence()}} for other similarity measures.
 }

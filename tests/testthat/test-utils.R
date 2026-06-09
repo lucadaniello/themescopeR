@@ -19,8 +19,8 @@ test_that("match_concreteness is case-insensitive and NA for misses", {
   expect_true(is.na(v[3]))
 })
 
-test_that("validate_tokens_df accepts valid and rejects invalid input", {
-  expect_true(validate_tokens_df(make_tokens()))
-  expect_error(validate_tokens_df(data.frame(x = 1)))
-  expect_error(validate_tokens_df(data.frame(doc_id = 1, sentence_id = 1, upos = "NOUN")))
+test_that("validate_words_df accepts valid and rejects invalid input", {
+  expect_true(validate_words_df(make_tokens()))
+  expect_error(validate_words_df(data.frame(x = 1)))
+  expect_error(validate_words_df(data.frame(doc_id = 1, sentence_id = 1, upos = "NOUN")))
 })

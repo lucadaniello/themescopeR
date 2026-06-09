@@ -10,7 +10,6 @@ plot_themescope(
   community_labels = NULL,
   community_sizes = NULL,
   title = "ThemeScope Map",
-  highlight = NULL,
   palette = NULL,
   ...
 )
@@ -21,17 +20,16 @@ plot_themescope(
 \item{cs}{Named numeric vector of CS values (one per community); may contain
 \code{NA}.}
 
-\item{community_labels}{Optional named character vector of display labels. If
-\code{NULL}, community names from \code{psi} are used.}
+\item{community_labels}{Optional named character vector of point labels (e.g.
+top terms per community). If \code{NULL}, community names from \code{psi} are used.}
 
-\item{community_sizes}{Optional named numeric vector of community sizes used
-to scale point area.}
+\item{community_sizes}{Optional named numeric vector of community sizes (the
+number of terms in each community) used to scale point area.}
 
 \item{title}{Character. Plot title (default \code{"ThemeScope Map"}).}
 
-\item{highlight}{Optional character vector of community names to ring.}
-
-\item{palette}{Optional named character vector of quadrant colours.}
+\item{palette}{Optional vector of community colours (one per community, in the
+order of \code{psi}). Defaults to \code{\link[=themescope_colours]{themescope_colours()}}.}
 
 \item{...}{Currently unused.}
 }
@@ -41,8 +39,10 @@ A \code{\link[ggplot2]{ggplot}} object.
 \description{
 Produces the two-dimensional strategic diagram locating each community in the
 space defined by z-scored PSI (x-axis, anchoring) and z-scored CS (y-axis,
-objectification). The four quadrants correspond to Social Representation
-Theory constructs (see \code{\link[=assign_quadrant]{assign_quadrant()}}).
+objectification). Points are \strong{coloured by community} with the shared pastel
+palette (so colours match \code{\link[=plot_network]{plot_network()}}); the four SRT quadrants are
+annotated in the corners. The only legend is community size (number of terms),
+placed at the bottom.
 }
 \examples{
 plot_themescope(

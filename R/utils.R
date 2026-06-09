@@ -112,47 +112,50 @@ match_concreteness <- function(terms, lexicon = brysbaert) {
 }
 
 
-#' Validate a tokens data frame
+#' Validate an annotated words data frame
 #'
-#' Checks that a tokens data frame has all columns required for the ThemeScope
-#' backend. Emits informative errors via \pkg{cli} when columns are missing.
+#' Checks that an annotated data frame has all columns required by the
+#' ThemeScope backend. The "word" used downstream is either the `token` or the
+#' `lemma` column (chosen via the `unit` argument of [build_vocab()] /
+#' [build_cooccurrence_matrix()]), so at least one of them must be present.
+#' Emits informative errors via \pkg{cli} when columns are missing.
 #'
-#' @param tokens_df Data frame to validate. Must contain `doc_id`,
+#' @param words_df Data frame to validate. Must contain `doc_id`,
 #'   `sentence_id`, `upos`, and at least one of `token` or `lemma`.
 #'
 #' @return Invisibly returns `TRUE` if validation passes.
 #'
 #' @examples
 #' df <- data.frame(doc_id = 1, sentence_id = 1, token = "dog", upos = "NOUN")
-#' validate_tokens_df(df)
+#' validate_words_df(df)
 #'
 #' @export
-validate_tokens_df <- function(tokens_df) {
-  if (!is.data.frame(tokens_df)) {
+validate_words_df <- function(words_df) {
+  if (!is.data.frame(words_df)) {
     cli::cli_abort(c(
-      "x" = "{.arg tokens_df} must be a data frame.",
-      "i" = "Got an object of class {.cls {class(tokens_df)}}."
+      "x" = "{.arg words_df} must be a data frame.",
+      "i" = "Got an object of class {.cls {class(words_df)}}."
     ))
   }
 
   required_always <- c("doc_id", "sentence_id", "upos")
-  missing_always <- setdiff(required_always, names(tokens_df))
+  missing_always <- setdiff(required_always, names(words_df))
   if (length(missing_always) > 0) {
     cli::cli_abort(c(
-      "x" = "{.arg tokens_df} is missing required column{?s}: {.field {missing_always}}.",
+      "x" = "{.arg words_df} is missing required column{?s}: {.field {missing_always}}.",
       "i" = "Required: {.field doc_id}, {.field sentence_id}, {.field upos}, and at least one of {.field token}/{.field lemma}."
     ))
   }
 
-  if (!("token" %in% names(tokens_df)) && !("lemma" %in% names(tokens_df))) {
+  if (!("token" %in% names(words_df)) && !("lemma" %in% names(words_df))) {
     cli::cli_abort(c(
-      "x" = "{.arg tokens_df} must contain at least one of {.field token} or {.field lemma}.",
-      "i" = "Found columns: {.field {names(tokens_df)}}."
+      "x" = "{.arg words_df} must contain at least one of {.field token} or {.field lemma}.",
+      "i" = "Found columns: {.field {names(words_df)}}."
     ))
   }
 
-  if (nrow(tokens_df) == 0) {
-    cli::cli_abort("{.arg tokens_df} must not be empty.")
+  if (nrow(words_df) == 0) {
+    cli::cli_abort("{.arg words_df} must not be empty.")
   }
 
   invisible(TRUE)

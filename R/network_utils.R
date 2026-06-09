@@ -1,185 +1,186 @@
-#' Build a vocabulary from a tokens data frame
-#'
-#' Identifies the most frequent terms in a POS-filtered tokens data frame. Uses
-#' the `lemma` column when available, falling back to `token`.
-#'
-#' @param tokens_df Data frame with `doc_id`, `sentence_id`, `upos`, and at least
-#'   one of `lemma` or `token`. See [validate_tokens_df()].
-#' @param vocab_size Integer. Maximum number of terms to keep (default `1500`).
-#' @param pos_filter Character vector of Universal POS tags to retain (default
-#'   `c("NOUN", "ADJ", "PROPN")`).
-#'
-#' @return A character vector of at most `vocab_size` terms, ordered by
-#'   decreasing frequency.
-#'
-#' @examples
-#' df <- data.frame(
-#'   doc_id = c(1, 1, 1, 1), sentence_id = c(1, 1, 1, 2),
-#'   lemma = c("dog", "cat", "dog", "bird"), upos = "NOUN"
-#' )
-#' build_vocab(df, vocab_size = 10)
-#'
-#' @export
-build_vocab <- function(tokens_df,
-                        vocab_size = 1500,
-                        pos_filter = c("NOUN", "ADJ", "PROPN")) {
-  validate_tokens_df(tokens_df)
-
-  word_col <- if ("lemma" %in% names(tokens_df)) "lemma" else "token"
-
-  filtered <- tokens_df[!is.na(tokens_df$upos) & tokens_df$upos %in% pos_filter, ]
-
-  if (nrow(filtered) == 0) {
+# Internal: extract the lower-cased "word" vector (the chosen unit) aligned to
+# the rows of an annotated words data frame. When `unit = "lemma"`, missing or
+# empty lemmas fall back to the corresponding token.
+.word_vector <- function(words_df, unit) {
+  if (!unit %in% names(words_df)) {
     cli::cli_abort(c(
-      "x" = "No tokens remain after POS filtering.",
-      "i" = "POS filter applied: {.val {pos_filter}}.",
-      "i" = "Unique UPOS tags found: {.val {unique(tokens_df$upos)}}."
+      "x" = "Column {.field {unit}} not found in the words data frame.",
+      "i" = "Available columns: {.field {names(words_df)}}."
     ))
   }
-
-  words <- filtered[[word_col]]
-  words <- words[!is.na(words) & nchar(trimws(words)) > 0]
-
-  if (length(words) == 0) {
-    cli::cli_abort("No non-empty terms found in column {.field {word_col}} after filtering.")
+  w <- as.character(words_df[[unit]])
+  if (unit == "lemma" && "token" %in% names(words_df)) {
+    miss <- is.na(w) | !nzchar(trimws(w))
+    w[miss] <- as.character(words_df$token[miss])
   }
-
-  freq_table <- sort(table(words), decreasing = TRUE)
-  n_keep <- min(vocab_size, length(freq_table))
-  as.character(names(freq_table)[seq_len(n_keep)])
+  tolower(w)
 }
 
 
-#' Build a sentence-level co-occurrence matrix
+#' Build a vocabulary data frame from an annotated words data frame
 #'
-#' Counts how many sentences each pair of vocabulary terms co-occur in (each
-#' pair counted at most once per sentence). The matrix is symmetric with a zero
-#' diagonal. Also returns the **presence** \eqn{a_t} of each term: the number of
-#' sentences containing it. Presence (not raw token frequency) is the correct
-#' marginal for the Association Strength normalisation, since the co-occurrence
-#' counts are themselves sentence-based.
+#' Counts the most frequent terms in a POS-filtered, annotated data frame and
+#' returns them as a tidy vocabulary. The analysis unit — the "word" — can be the
+#' surface `token` or the `lemma`.
 #'
-#' @param tokens_df Data frame as in [build_vocab()].
-#' @param vocab Character vector of vocabulary terms. If `NULL`, built with
-#'   [build_vocab()] using `vocab_size` and `pos_filter`.
-#' @param vocab_size Integer. Passed to [build_vocab()] when `vocab` is `NULL`.
-#' @param pos_filter Character vector of POS tags. Passed to [build_vocab()] when
-#'   `vocab` is `NULL`.
-#' @param window Character. Co-occurrence window; only `"sentence"` is supported.
+#' @param words_df An annotated data frame (e.g. the output of
+#'   [preprocess_texts()]). The "word" used to build the vocabulary is the column
+#'   named by `unit` (`token` or `lemma`); the data frame must also contain
+#'   `doc_id`, `sentence_id` and `upos`. See [validate_words_df()].
+#' @param unit Character. Which column to use as the word: `"lemma"` (default) or
+#'   `"token"`. When `"lemma"`, missing lemmas fall back to the token.
+#' @param vocab_size Integer or `NULL`. If `NULL` (default) the vocabulary
+#'   contains **all** terms; otherwise only the top `vocab_size` by frequency.
+#' @param pos_filter Character vector of Universal POS tags to retain (default
+#'   `c("NOUN", "ADJ", "PROPN")`).
 #'
-#' @return A named list with:
+#' @return A data frame ordered by decreasing frequency with columns:
 #'   \describe{
-#'     \item{`cooc_matrix`}{Symmetric sparse \code{\link[Matrix]{Matrix}}
-#'       (`dgCMatrix`); cell \eqn{[i,j]} = number of sentences in which terms
-#'       \eqn{i} and \eqn{j} co-occur.}
-#'     \item{`presence`}{Named integer vector \eqn{a_t}: the number of sentences
-#'       containing each vocabulary term.}
-#'     \item{`vocab`}{Character vector of vocabulary terms (matrix row/col order).}
+#'     \item{`token` or `lemma`}{The word (lower-cased); the column is named
+#'       after `unit`.}
+#'     \item{`freq`}{Integer term frequency (number of occurrences).}
+#'     \item{`upos`}{The dominant (most frequent) Universal POS tag of the term.}
 #'   }
 #'
 #' @examples
 #' df <- data.frame(
-#'   doc_id = c(1, 1, 1, 1, 1), sentence_id = c(1, 1, 1, 2, 2),
-#'   lemma = c("dog", "cat", "dog", "bird", "cat"), upos = "NOUN"
+#'   doc_id = c(1, 1, 1, 1), sentence_id = c(1, 1, 1, 2),
+#'   token = c("dogs", "cats", "dog", "birds"),
+#'   lemma = c("dog", "cat", "dog", "bird"), upos = "NOUN"
 #' )
-#' res <- build_cooccurrence_matrix(df, vocab_size = 10)
-#' res$cooc_matrix
+#' build_vocab(df, unit = "lemma")
 #'
 #' @export
-build_cooccurrence_matrix <- function(tokens_df,
-                                      vocab      = NULL,
-                                      vocab_size = 1500,
-                                      pos_filter = c("NOUN", "ADJ", "PROPN"),
-                                      window     = "sentence") {
-  validate_tokens_df(tokens_df)
+build_vocab <- function(words_df,
+                        unit       = c("lemma", "token"),
+                        vocab_size = NULL,
+                        pos_filter = c("NOUN", "ADJ", "PROPN")) {
+  validate_words_df(words_df)
+  unit <- match.arg(unit)
 
-  if (!identical(window, "sentence")) {
+  keep_pos <- !is.na(words_df$upos) & words_df$upos %in% pos_filter
+  filtered <- words_df[keep_pos, , drop = FALSE]
+  if (nrow(filtered) == 0) {
     cli::cli_abort(c(
-      "x" = "Only the {.val sentence} window is currently supported.",
-      "i" = "Got: {.val {window}}."
+      "x" = "No rows remain after POS filtering.",
+      "i" = "POS filter applied: {.val {pos_filter}}.",
+      "i" = "Unique UPOS tags found: {.val {unique(words_df$upos)}}."
     ))
   }
 
-  if (is.null(vocab)) {
-    vocab <- build_vocab(tokens_df, vocab_size = vocab_size, pos_filter = pos_filter)
+  w   <- .word_vector(filtered, unit)
+  ok  <- !is.na(w) & nzchar(trimws(w))
+  dat <- data.frame(word = w[ok], upos = filtered$upos[ok], stringsAsFactors = FALSE)
+  if (nrow(dat) == 0) {
+    cli::cli_abort("No non-empty terms found for unit {.field {unit}} after filtering.")
   }
 
-  n <- length(vocab)
-  if (n < 2) {
-    cli::cli_abort("Vocabulary must contain at least 2 terms.")
-  }
-
-  term_idx <- stats::setNames(seq_len(n), vocab)
-  word_col <- if ("lemma" %in% names(tokens_df)) "lemma" else "token"
-
-  filtered <- tokens_df[!is.na(tokens_df$upos) & tokens_df$upos %in% pos_filter, ]
-  filtered <- filtered[!is.na(filtered[[word_col]]), ]
-  filtered <- filtered[filtered[[word_col]] %in% vocab, ]
-
-  if (nrow(filtered) == 0) {
-    cli::cli_abort("No tokens in vocab remain after POS filtering.")
-  }
-
-  filtered$sent_key <- paste(filtered$doc_id, filtered$sentence_id, sep = "__")
-  sentences <- split(filtered[[word_col]], filtered$sent_key)
-
-  # Unique terms per sentence (the co-occurrence unit)
-  uniq_per_sent <- lapply(sentences, function(x) unique(x[x %in% vocab]))
-
-  # Presence a_t = number of sentences containing each term
-  presence <- tabulate(term_idx[unlist(uniq_per_sent, use.names = FALSE)], nbins = n)
-  names(presence) <- vocab
-
-  # Co-occurrence pairs (i < j) accumulated as sparse triplets
-  row_idx_list <- vector("list", length(uniq_per_sent))
-  col_idx_list <- vector("list", length(uniq_per_sent))
-
-  for (s_i in seq_along(uniq_per_sent)) {
-    terms_in_sent <- uniq_per_sent[[s_i]]
-    m <- length(terms_in_sent)
-    if (m < 2) next
-    idx   <- term_idx[terms_in_sent]
-    pairs <- which(lower.tri(matrix(0, m, m)), arr.ind = TRUE)
-    row_idx_list[[s_i]] <- idx[pairs[, 1]]
-    col_idx_list[[s_i]] <- idx[pairs[, 2]]
-  }
-
-  all_rows <- unlist(row_idx_list)
-  all_cols <- unlist(col_idx_list)
-
-  if (length(all_rows) == 0) {
-    cooc <- Matrix::sparseMatrix(i = integer(0), j = integer(0), x = numeric(0),
-                                 dims = c(n, n), dimnames = list(vocab, vocab))
-    return(list(cooc_matrix = cooc, presence = presence, vocab = vocab))
-  }
-
-  cooc_upper <- Matrix::sparseMatrix(
-    i = all_rows, j = all_cols, x = rep(1L, length(all_rows)),
-    dims = c(n, n), dimnames = list(vocab, vocab)
+  agg <- dplyr::summarise(
+    dplyr::group_by(dat, .data$word),
+    freq = dplyr::n(),
+    upos = names(sort(table(.data$upos), decreasing = TRUE))[1],
+    .groups = "drop"
   )
-  cooc_matrix <- cooc_upper + Matrix::t(cooc_upper)
+  agg <- dplyr::arrange(agg, dplyr::desc(.data$freq), .data$word)
+  agg <- as.data.frame(agg, stringsAsFactors = FALSE)
 
-  list(cooc_matrix = cooc_matrix, presence = presence, vocab = vocab)
+  if (!is.null(vocab_size)) {
+    agg <- utils::head(agg, as.integer(vocab_size))
+  }
+
+  names(agg)[names(agg) == "word"] <- unit
+  agg <- agg[, c(unit, "freq", "upos"), drop = FALSE]
+  rownames(agg) <- NULL
+  agg
+}
+
+
+#' Normalise a co-occurrence matrix into a similarity matrix
+#'
+#' Re-weights raw co-occurrence counts with one of several similarity measures
+#' commonly used in co-word analysis. Given the co-occurrence count
+#' \eqn{c_{ij}} and the term presences \eqn{a_i, a_j}:
+#' \describe{
+#'   \item{`"association"`}{\eqn{c_{ij} / (a_i a_j)} — Association Strength
+#'     (ThemeScope default; van Eck & Waltman).}
+#'   \item{`"equivalence"`}{\eqn{c_{ij}^2 / (a_i a_j)} — equivalence index.}
+#'   \item{`"jaccard"`}{\eqn{c_{ij} / (a_i + a_j - c_{ij})}.}
+#'   \item{`"salton"`}{\eqn{c_{ij} / \sqrt{a_i a_j}} — cosine / Salton's measure.}
+#'   \item{`"inclusion"`}{\eqn{c_{ij} / \min(a_i, a_j)}.}
+#'   \item{`"frequency"`}{the raw counts, unchanged.}
+#' }
+#'
+#' @param cooc_matrix Symmetric sparse \code{Matrix} of co-occurrence counts.
+#' @param presence Named numeric vector of term presences \eqn{a_t}; names must
+#'   match the rows/columns of `cooc_matrix`.
+#' @param method One of `"association"` (default), `"equivalence"`, `"jaccard"`,
+#'   `"salton"`, `"inclusion"`, `"frequency"`.
+#'
+#' @return A sparse `dgCMatrix` of the same dimensions as `cooc_matrix`.
+#'
+#' @examples
+#' m <- Matrix::sparseMatrix(
+#'   i = c(1, 2), j = c(2, 1), x = c(3, 3), dims = c(3, 3),
+#'   dimnames = list(c("a", "b", "c"), c("a", "b", "c"))
+#' )
+#' normalize_cooccurrence(m, c(a = 5, b = 4, c = 2), method = "jaccard")
+#'
+#' @export
+normalize_cooccurrence <- function(cooc_matrix, presence,
+                                   method = c("association", "equivalence",
+                                              "jaccard", "salton", "inclusion",
+                                              "frequency")) {
+  method <- match.arg(method)
+  if (!inherits(cooc_matrix, "Matrix") && !is.matrix(cooc_matrix)) {
+    cli::cli_abort("{.arg cooc_matrix} must be a {.cls Matrix} or base matrix object.")
+  }
+  if (!is.numeric(presence)) {
+    cli::cli_abort("{.arg presence} must be a numeric vector.")
+  }
+  n <- nrow(cooc_matrix)
+  if (length(presence) != n) {
+    cli::cli_abort(
+      "Length of {.arg presence} ({length(presence)}) must equal the number of rows in {.arg cooc_matrix} ({n})."
+    )
+  }
+
+  cm <- methods::as(methods::as(cooc_matrix, "dgCMatrix"), "CsparseMatrix")
+  if (method == "frequency") return(cm)
+
+  nz <- Matrix::which(cm != 0, arr.ind = TRUE)
+  if (nrow(nz) == 0) return(cm)
+
+  rows <- nz[, 1]; cols <- nz[, 2]; cij <- cm[nz]
+  ai <- as.numeric(presence)[rows]
+  aj <- as.numeric(presence)[cols]
+
+  val <- switch(method,
+    association = cij / (ai * aj),
+    equivalence = cij^2 / (ai * aj),
+    jaccard     = cij / (ai + aj - cij),
+    salton      = cij / sqrt(ai * aj),
+    inclusion   = cij / pmin(ai, aj)
+  )
+  val[!is.finite(val)] <- 0
+
+  Matrix::sparseMatrix(i = rows, j = cols, x = val, dims = dim(cm),
+                       dimnames = dimnames(cm))
 }
 
 
 #' Compute Association Strength from a co-occurrence matrix
 #'
-#' Normalises raw sentence co-occurrence counts using the Association Strength
-#' measure (ThemeScope papers, Eq. 1):
-#' \deqn{AS(t,t') = \frac{a_{t,t'}}{a_t \cdot a_{t'}},}
-#' where \eqn{a_{t,t'}} is the number of co-occurring sentences and \eqn{a_t} the
-#' presence (sentence count) of term \eqn{t}. Values lie in \eqn{[0,1]}; higher
-#' values indicate stronger association, reducing the bias of highly frequent
-#' terms.
+#' Convenience wrapper around [normalize_cooccurrence()] with
+#' `method = "association"`: \eqn{AS(t,t') = c_{tt'} / (a_t a_{t'})} (ThemeScope
+#' papers, Eq. 1). Values lie in \eqn{[0,1]}; higher values indicate stronger
+#' association, reducing the bias of highly frequent terms.
 #'
-#' @param cooc_matrix Symmetric sparse \code{Matrix} of co-occurrence counts, as
-#'   returned by [build_cooccurrence_matrix()].
-#' @param presence Named numeric vector of term presence \eqn{a_t}. Names must
-#'   match the row/column names of `cooc_matrix`.
+#' @param cooc_matrix Symmetric sparse \code{Matrix} of co-occurrence counts.
+#' @param presence Named numeric vector of term presences \eqn{a_t}.
 #'
-#' @return A sparse `dgCMatrix` of Association Strength values, same dimensions
-#'   as `cooc_matrix`.
+#' @return A sparse `dgCMatrix` of Association Strength values.
+#'
+#' @seealso [normalize_cooccurrence()] for other similarity measures.
 #'
 #' @examples
 #' m <- Matrix::sparseMatrix(
@@ -190,63 +191,161 @@ build_cooccurrence_matrix <- function(tokens_df,
 #'
 #' @export
 compute_association_strength <- function(cooc_matrix, presence) {
-  if (!inherits(cooc_matrix, "Matrix") && !is.matrix(cooc_matrix)) {
-    cli::cli_abort("{.arg cooc_matrix} must be a {.cls Matrix} or base matrix object.")
+  normalize_cooccurrence(cooc_matrix, presence, method = "association")
+}
+
+
+#' Build a co-occurrence (similarity) matrix
+#'
+#' Counts how many text units (sentences or documents) each pair of vocabulary
+#' terms co-occur in (each pair counted at most once per unit), then optionally
+#' re-weights the counts with a similarity measure (see [normalize_cooccurrence()]).
+#' Also returns the **presence** \eqn{a_t} of each term — the number of units
+#' containing it — which is the correct marginal for the normalisation.
+#'
+#' @param words_df An annotated words data frame (e.g. from [preprocess_texts()]),
+#'   containing `doc_id`, `sentence_id`, `upos` and the `unit` column.
+#' @param vocab Optional vocabulary. If `NULL` (default) it is built from
+#'   `words_df` with [build_vocab()] using `unit`, `vocab_size` and `pos_filter`.
+#'   You may instead pass a [build_vocab()] data frame to reuse a fixed
+#'   vocabulary; the analysis unit is then taken from its term column.
+#' @param unit Character. Word column to use: `"lemma"` (default) or `"token"`.
+#'   Ignored when `vocab` is a [build_vocab()] data frame (the unit is inferred
+#'   from it).
+#' @param vocab_size Integer or `NULL`. Passed to [build_vocab()] when `vocab` is
+#'   `NULL` (`NULL` = keep all terms).
+#' @param pos_filter Character vector of POS tags. Passed to [build_vocab()] when
+#'   `vocab` is `NULL`.
+#' @param window Co-occurrence unit: `"sentence"` (default) counts terms that
+#'   share a sentence; `"document"` counts terms that share a document.
+#' @param normalization Similarity measure applied to the counts: one of
+#'   `"association"`, `"equivalence"`, `"jaccard"`, `"salton"`, `"inclusion"`, or
+#'   `"frequency"`. `NULL` (default) is equivalent to `"frequency"` (raw counts).
+#'
+#' @return A named list with:
+#'   \describe{
+#'     \item{`cooc_matrix`}{Symmetric sparse matrix after `normalization`
+#'       (raw counts if `NULL`/`"frequency"`).}
+#'     \item{`counts`}{The raw sentence/document co-occurrence counts.}
+#'     \item{`presence`}{Named integer vector \eqn{a_t} (units containing each term).}
+#'     \item{`vocab`}{The vocabulary data frame used.}
+#'     \item{`unit`, `window`, `normalization`}{The settings used.}
+#'   }
+#'
+#' @examples
+#' df <- data.frame(
+#'   doc_id = c(1, 1, 1, 1, 1), sentence_id = c(1, 1, 1, 2, 2),
+#'   lemma = c("dog", "cat", "dog", "bird", "cat"), upos = "NOUN"
+#' )
+#' res <- build_cooccurrence_matrix(df, normalization = "association")
+#' res$cooc_matrix
+#'
+#' @export
+build_cooccurrence_matrix <- function(words_df,
+                                      vocab         = NULL,
+                                      unit          = c("lemma", "token"),
+                                      vocab_size    = NULL,
+                                      pos_filter    = c("NOUN", "ADJ", "PROPN"),
+                                      window        = c("sentence", "document"),
+                                      normalization = NULL) {
+  validate_words_df(words_df)
+  unit   <- match.arg(unit)
+  window <- match.arg(window)
+  if (is.null(normalization)) normalization <- "frequency"
+  normalization <- match.arg(normalization,
+                             c("association", "equivalence", "jaccard",
+                               "salton", "inclusion", "frequency"))
+
+  # Resolve vocabulary + unit
+  if (is.null(vocab)) {
+    vocab <- build_vocab(words_df, unit = unit, vocab_size = vocab_size,
+                         pos_filter = pos_filter)
+  } else if (is.data.frame(vocab)) {
+    found <- intersect(c("lemma", "token"), names(vocab))
+    if (length(found) == 0) {
+      cli::cli_abort("{.arg vocab} must be a {.fn build_vocab} data frame (a {.field lemma} or {.field token} column).")
+    }
+    unit <- found[1]
+  } else {
+    cli::cli_abort("{.arg vocab} must be {.code NULL} or a {.fn build_vocab} data frame.")
   }
-  if (!is.numeric(presence)) {
-    cli::cli_abort("{.arg presence} must be a numeric vector.")
+
+  terms <- as.character(vocab[[unit]])
+  n <- length(terms)
+  if (n < 2) cli::cli_abort("Vocabulary must contain at least 2 terms.")
+  term_idx <- stats::setNames(seq_len(n), terms)
+
+  keep_pos <- !is.na(words_df$upos) & words_df$upos %in% pos_filter
+  filtered <- words_df[keep_pos, , drop = FALSE]
+  w <- .word_vector(filtered, unit)
+  in_vocab <- !is.na(w) & w %in% terms
+  filtered <- filtered[in_vocab, , drop = FALSE]
+  w <- w[in_vocab]
+  if (nrow(filtered) == 0) cli::cli_abort("No tokens in vocab remain after POS filtering.")
+
+  unit_key <- if (window == "document") {
+    as.character(filtered$doc_id)
+  } else {
+    paste(filtered$doc_id, filtered$sentence_id, sep = "__")
   }
 
-  n <- nrow(cooc_matrix)
-  if (length(presence) != n) {
-    cli::cli_abort(
-      "Length of {.arg presence} ({length(presence)}) must equal the number of rows in {.arg cooc_matrix} ({n})."
-    )
+  units <- split(w, unit_key)
+  uniq_per_unit <- lapply(units, function(x) unique(x[x %in% terms]))
+
+  presence <- tabulate(term_idx[unlist(uniq_per_unit, use.names = FALSE)], nbins = n)
+  names(presence) <- terms
+
+  row_idx <- vector("list", length(uniq_per_unit))
+  col_idx <- vector("list", length(uniq_per_unit))
+  for (s in seq_along(uniq_per_unit)) {
+    tt <- uniq_per_unit[[s]]
+    m <- length(tt)
+    if (m < 2) next
+    idx <- term_idx[tt]
+    pairs <- which(lower.tri(matrix(0, m, m)), arr.ind = TRUE)
+    row_idx[[s]] <- idx[pairs[, 1]]
+    col_idx[[s]] <- idx[pairs[, 2]]
+  }
+  all_rows <- unlist(row_idx); all_cols <- unlist(col_idx)
+
+  if (length(all_rows) == 0) {
+    counts <- Matrix::sparseMatrix(i = integer(0), j = integer(0), x = numeric(0),
+                                   dims = c(n, n), dimnames = list(terms, terms))
+  } else {
+    upper  <- Matrix::sparseMatrix(i = all_rows, j = all_cols, x = rep(1L, length(all_rows)),
+                                   dims = c(n, n), dimnames = list(terms, terms))
+    counts <- upper + Matrix::t(upper)
   }
 
-  a_safe <- as.numeric(presence)
-  a_safe[a_safe == 0] <- NA_real_
+  cooc_matrix <- normalize_cooccurrence(counts, presence, method = normalization)
 
-  cm <- methods::as(methods::as(cooc_matrix, "dgCMatrix"), "CsparseMatrix")
-
-  nz <- Matrix::which(cm != 0, arr.ind = TRUE)
-  if (nrow(nz) == 0) return(cm)
-
-  rows <- nz[, 1]
-  cols <- nz[, 2]
-  vals <- cm[nz]
-
-  denom   <- a_safe[rows] * a_safe[cols]
-  as_vals <- ifelse(!is.na(denom) & denom > 0, vals / denom, 0)
-
-  Matrix::sparseMatrix(
-    i = rows, j = cols, x = as_vals,
-    dims = dim(cm), dimnames = dimnames(cm)
-  )
+  list(cooc_matrix = cooc_matrix, counts = counts, presence = presence,
+       vocab = vocab, unit = unit, window = window, normalization = normalization)
 }
 
 
 #' Build a thresholded semantic co-occurrence network
 #'
-#' Constructs an undirected weighted \code{igraph} graph from an Association
-#' Strength matrix, retaining only edges whose AS value exceeds the
-#' `threshold_percentile` quantile of all non-zero AS values.
+#' Constructs an undirected weighted \code{igraph} graph from a similarity
+#' matrix, retaining only edges whose weight exceeds the `threshold_percentile`
+#' quantile of all non-zero weights.
 #'
-#' @param as_matrix Symmetric sparse \code{Matrix} of Association Strength
-#'   values, from [compute_association_strength()].
-#' @param threshold_percentile Numeric in \eqn{(0, 1)}. Quantile of non-zero AS
-#'   values used as the minimum edge weight (default `0.98`). This is an
+#' @param as_matrix Symmetric sparse \code{Matrix} of edge weights (e.g. the
+#'   `cooc_matrix` from [build_cooccurrence_matrix()] or the output of
+#'   [normalize_cooccurrence()]).
+#' @param threshold_percentile Numeric in \eqn{(0, 1)}. Quantile of non-zero
+#'   weights used as the minimum edge weight (default `0.98`). This is an
 #'   implementation choice for network sparsification, not part of the metric
 #'   definitions; tune it for your corpus.
 #' @param verbose Logical. Print progress messages (default `TRUE`).
 #'
-#' @return An undirected weighted \code{igraph} object: `E(graph)$weight` holds
-#'   AS values and `V(graph)$name` the term labels. Only terms with at least one
-#'   retained edge appear as vertices.
+#' @return An undirected weighted \code{igraph} object; `E(graph)$weight` holds
+#'   the edge weights and `V(graph)$name` the term labels. Only terms with at
+#'   least one retained edge appear as vertices.
 #'
 #' @examples
 #' \dontrun{
-#' net <- build_cooccurrence_network(as_mat, threshold_percentile = 0.98)
+#' net <- build_cooccurrence_network(cooc$cooc_matrix, threshold_percentile = 0.98)
 #' }
 #'
 #' @export
@@ -261,15 +360,13 @@ build_cooccurrence_network <- function(as_matrix,
     cli::cli_abort("{.arg threshold_percentile} must be a single numeric in (0, 1).")
   }
 
-  upper   <- Matrix::triu(as_matrix, k = 1)
+  upper   <- Matrix::triu(methods::as(as_matrix, "CsparseMatrix"), k = 1)
   nz_vals <- upper@x[upper@x > 0]
-  if (length(nz_vals) == 0) {
-    cli::cli_abort("No non-zero values found in {.arg as_matrix}.")
-  }
+  if (length(nz_vals) == 0) cli::cli_abort("No non-zero values found in {.arg as_matrix}.")
 
   threshold <- stats::quantile(nz_vals, probs = threshold_percentile, na.rm = TRUE)
   themescope_progress(
-    "AS threshold ({threshold_percentile * 100}th percentile): {round(threshold, 8)}",
+    "Edge threshold ({threshold_percentile * 100}th percentile): {round(threshold, 8)}",
     verbose
   )
 
@@ -280,14 +377,13 @@ build_cooccurrence_network <- function(as_matrix,
   edge_positions <- Matrix::which(upper_thresh > 0, arr.ind = TRUE)
   if (nrow(edge_positions) == 0) {
     cli::cli_abort(c(
-      "x" = "No edges remain after applying the AS threshold.",
+      "x" = "No edges remain after applying the threshold.",
       "i" = "Try lowering {.arg threshold_percentile} (currently {threshold_percentile})."
     ))
   }
 
   term_names <- rownames(as_matrix)
   if (is.null(term_names)) term_names <- as.character(seq_len(nrow(as_matrix)))
-
   edge_weights <- upper_thresh[edge_positions]
   edge_list <- cbind(term_names[edge_positions[, 1]], term_names[edge_positions[, 2]])
 

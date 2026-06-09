@@ -1,5 +1,5 @@
-# Internal: does this data frame already look like annotated tokens?
-.is_tokens_df <- function(df) {
+# Internal: does this data frame already look like annotated words/tokens?
+.is_words_df <- function(df) {
   all(c("doc_id", "sentence_id", "upos") %in% names(df)) &&
     any(c("token", "lemma") %in% names(df))
 }
@@ -9,50 +9,53 @@
 #'
 #' @description
 #' Executes the complete ThemeScope workflow in a single call. Accepts **either**
-#' a pre-annotated tokens data frame **or** a raw document collection (in which
-#' case it is annotated with \pkg{udpipe} via [preprocess_texts()] first). The
-#' steps are:
+#' an annotated words data frame **or** a raw document collection (in which case
+#' it is annotated with \pkg{udpipe} via [preprocess_texts()] first). The steps:
 #' \enumerate{
-#'   \item (Optional) annotate raw texts into tokens.
-#'   \item Build the vocabulary from POS-filtered tokens.
-#'   \item Build the sentence-level co-occurrence matrix and term presence.
-#'   \item Normalise with Association Strength.
-#'   \item Construct a thresholded co-occurrence network.
-#'   \item Detect communities (walktrap by default).
-#'   \item Compute PSI (anchoring) per community.
-#'   \item Compute CS (objectification) per community.
+#'   \item (Optional) annotate raw texts into words.
+#'   \item Build the vocabulary from POS-filtered words ([build_vocab()]).
+#'   \item Build the co-occurrence matrix + term presence, with the chosen
+#'     `normalization` ([build_cooccurrence_matrix()]).
+#'   \item Construct a thresholded network ([build_cooccurrence_network()]).
+#'   \item Detect communities (walktrap / louvain / leiden).
+#'   \item Compute PSI (anchoring) and CS (objectification) per community.
 #'   \item Collect network statistics.
 #' }
 #'
-#' @param data Either a tokens data frame (columns `doc_id`, `sentence_id`,
-#'   `upos`, and `token`/`lemma`) or a raw collection (a `text` and `doc_id`
-#'   column, e.g. from [read_collection()]).
+#' @param data Either an annotated words data frame (columns `doc_id`,
+#'   `sentence_id`, `upos`, and `token`/`lemma`) or a raw collection (a `text`
+#'   and `doc_id` column, e.g. from [read_collection()]).
 #' @param model Required only when `data` is a raw collection: a \pkg{udpipe}
 #'   model object, a path to a `.udpipe` file, or a language name (see
 #'   [preprocess_texts()]).
 #' @param text_col,doc_id_col Column names used when annotating a raw collection.
+#' @param unit Word unit for the vocabulary: `"lemma"` (default) or `"token"`.
 #' @param concreteness_lexicon Data frame with columns `"word"` and `"conc.m"`.
 #'   Defaults to the bundled [brysbaert] lexicon. Pass `NULL` to skip CS.
-#' @param vocab_size Integer. Maximum vocabulary size (default `1500`).
+#' @param vocab_size Integer or `NULL`. Maximum vocabulary size (`NULL` = all).
 #' @param pos_filter Character vector of Universal POS tags (default
 #'   `c("NOUN", "ADJ", "PROPN")`).
-#' @param threshold_percentile Numeric in \eqn{(0, 1)}; AS network threshold
+#' @param window Co-occurrence unit: `"sentence"` (default) or `"document"`.
+#' @param normalization Similarity measure for the co-occurrence matrix:
+#'   `"association"` (default), `"equivalence"`, `"jaccard"`, `"salton"`,
+#'   `"inclusion"` or `"frequency"`. See [normalize_cooccurrence()].
+#' @param threshold_percentile Numeric in \eqn{(0, 1)}; network edge threshold
 #'   (default `0.98`).
-#' @param community_algorithm `"walktrap"` (default) or `"louvain"`.
-#' @param walktrap_steps Integer (default `4`); ignored for Louvain.
+#' @param community_algorithm `"walktrap"` (default), `"louvain"` or `"leiden"`.
+#' @param walktrap_steps Integer (default `4`); used by walktrap only.
+#' @param resolution Numeric resolution for louvain/leiden (default `1`).
 #' @param min_community_size Integer (default `10`).
 #' @param seed Optional integer seed for reproducible community detection.
 #' @param verbose Logical. Print progress messages (default `TRUE`).
 #'
 #' @return An S3 object of class `"themescope"` with elements `graph`,
 #'   `communities`, `membership`, `psi`, `cs`, `presence`, `network_stats`,
-#'   `vocab`, `params`, and `call`.
+#'   `vocab` (a [build_vocab()] data frame), `params`, and `call`.
 #'
 #' @examples
 #' \dontrun{
-#' # From a pre-annotated tokens data frame
-#' result <- themescope(tokens_df, vocab_size = 1000)
-#' print(result)
+#' # From an annotated words data frame
+#' result <- themescope(words_df, vocab_size = 1500)
 #' plot(result, type = "map")
 #'
 #' # From raw texts (annotated internally)
@@ -65,25 +68,31 @@ themescope <- function(data,
                        model                = NULL,
                        text_col             = "text",
                        doc_id_col           = "doc_id",
+                       unit                 = c("lemma", "token"),
                        concreteness_lexicon = brysbaert,
                        vocab_size           = 1500,
                        pos_filter           = c("NOUN", "ADJ", "PROPN"),
+                       window               = c("sentence", "document"),
+                       normalization        = "association",
                        threshold_percentile = 0.98,
                        community_algorithm  = "walktrap",
                        walktrap_steps       = 4,
+                       resolution           = 1,
                        min_community_size   = 10,
                        seed                 = NULL,
                        verbose              = TRUE) {
 
-  call <- match.call()
+  call   <- match.call()
+  unit   <- match.arg(unit)
+  window <- match.arg(window)
 
   if (!is.data.frame(data)) {
-    cli::cli_abort("{.arg data} must be a data frame (tokens or a raw collection).")
+    cli::cli_abort("{.arg data} must be a data frame (annotated words or a raw collection).")
   }
 
   # ---- 0. Annotate raw texts if needed ----
-  if (.is_tokens_df(data)) {
-    tokens_df <- data
+  if (.is_words_df(data)) {
+    words_df <- data
   } else if (text_col %in% names(data)) {
     if (is.null(model)) {
       cli::cli_abort(c(
@@ -92,41 +101,39 @@ themescope <- function(data,
       ))
     }
     themescope_progress("Step 0: Annotating raw texts ...", verbose)
-    tokens_df <- preprocess_texts(data, model = model, text_col = text_col,
-                                  doc_id_col = doc_id_col, verbose = verbose)
+    words_df <- preprocess_texts(data, model = model, text_col = text_col,
+                                 doc_id_col = doc_id_col, verbose = verbose)
   } else {
     cli::cli_abort(c(
-      "x" = "{.arg data} is neither a tokens data frame nor a raw collection.",
-      "i" = "Tokens need {.field doc_id}, {.field sentence_id}, {.field upos} + {.field token}/{.field lemma}; a collection needs a {.field {text_col}} column."
+      "x" = "{.arg data} is neither an annotated words data frame nor a raw collection.",
+      "i" = "Words need {.field doc_id}, {.field sentence_id}, {.field upos} + {.field token}/{.field lemma}; a collection needs a {.field {text_col}} column."
     ))
   }
 
-  validate_tokens_df(tokens_df)
+  validate_words_df(words_df)
 
   # ---- 1. Vocabulary ----
-  themescope_progress("Step 1/7: Building vocabulary ...", verbose)
-  vocab <- build_vocab(tokens_df, vocab_size = vocab_size, pos_filter = pos_filter)
-  themescope_progress(paste0("  Vocabulary size: ", length(vocab), " terms."), verbose)
+  themescope_progress("Step 1/6: Building vocabulary ...", verbose)
+  vocab <- build_vocab(words_df, unit = unit, vocab_size = vocab_size, pos_filter = pos_filter)
+  themescope_progress(paste0("  Vocabulary size: ", nrow(vocab), " terms."), verbose)
 
-  # ---- 2. Co-occurrence matrix + presence ----
-  themescope_progress("Step 2/7: Building co-occurrence matrix ...", verbose)
-  cooc <- build_cooccurrence_matrix(tokens_df, vocab = vocab, pos_filter = pos_filter,
-                                    window = "sentence")
+  # ---- 2. Co-occurrence + normalisation ----
+  themescope_progress("Step 2/6: Building co-occurrence matrix ...", verbose)
+  cooc <- build_cooccurrence_matrix(words_df, vocab = vocab, unit = unit,
+                                    pos_filter = pos_filter, window = window,
+                                    normalization = normalization)
 
-  # ---- 3. Association Strength ----
-  themescope_progress("Step 3/7: Computing Association Strength ...", verbose)
-  as_matrix <- compute_association_strength(cooc$cooc_matrix, cooc$presence)
-
-  # ---- 4. Network ----
-  themescope_progress("Step 4/7: Building network ...", verbose)
-  graph <- build_cooccurrence_network(as_matrix, threshold_percentile = threshold_percentile,
+  # ---- 3. Network ----
+  themescope_progress("Step 3/6: Building network ...", verbose)
+  graph <- build_cooccurrence_network(cooc$cooc_matrix,
+                                      threshold_percentile = threshold_percentile,
                                       verbose = verbose)
 
-  # ---- 5. Communities ----
-  themescope_progress("Step 5/7: Detecting communities ...", verbose)
+  # ---- 4. Communities ----
+  themescope_progress("Step 4/6: Detecting communities ...", verbose)
   comm <- detect_communities(graph, algorithm = community_algorithm,
-                             steps = walktrap_steps, min_size = min_community_size,
-                             seed = seed, verbose = verbose)
+                             steps = walktrap_steps, resolution = resolution,
+                             min_size = min_community_size, seed = seed, verbose = verbose)
   communities <- comm$communities
   membership  <- comm$membership
 
@@ -137,27 +144,31 @@ themescope <- function(data,
     ))
   }
 
-  # ---- 6. PSI ----
-  themescope_progress("Step 6/7: Computing PSI ...", verbose)
+  # ---- 5. PSI ----
+  themescope_progress("Step 5/6: Computing PSI ...", verbose)
   psi <- compute_psi(graph, communities, cooc$presence)
 
-  # ---- 7. CS ----
+  # ---- 6. CS ----
   if (!is.null(concreteness_lexicon)) {
-    themescope_progress("Step 7/7: Computing CS ...", verbose)
+    themescope_progress("Step 6/6: Computing CS ...", verbose)
     cs <- compute_cs(graph, communities, concreteness_lexicon)
   } else {
-    themescope_progress("Step 7/7: No concreteness lexicon -- CS set to NA.", verbose)
+    themescope_progress("Step 6/6: No concreteness lexicon -- CS set to NA.", verbose)
     cs <- stats::setNames(rep(NA_real_, length(communities)), names(communities))
   }
 
   network_stats <- compute_network_stats(graph, communities)
 
   params <- list(
+    unit                 = unit,
     vocab_size           = vocab_size,
     pos_filter           = pos_filter,
+    window               = window,
+    normalization        = cooc$normalization,
     threshold_percentile = threshold_percentile,
     community_algorithm  = community_algorithm,
     walktrap_steps       = walktrap_steps,
+    resolution           = resolution,
     min_community_size   = min_community_size,
     seed                 = seed
   )
@@ -185,12 +196,12 @@ themescope <- function(data,
 #' @param ... Ignored.
 #' @export
 print.themescope <- function(x, ...) {
-  n_comm  <- length(x$communities)
+  n_comm <- length(x$communities)
   cli::cli_h1("ThemeScope Analysis")
   cli::cli_bullets(c(
     "*" = "Network: {igraph::vcount(x$graph)} nodes, {igraph::ecount(x$graph)} edges",
     "*" = "Communities: {n_comm}",
-    "*" = "Vocabulary size: {length(x$vocab)} terms"
+    "*" = "Vocabulary size: {nrow(x$vocab)} terms (unit: {x$params$unit})"
   ))
 
   if (n_comm > 0) {
@@ -221,8 +232,11 @@ summary.themescope <- function(object, ...) {
   cli::cli_h1("ThemeScope Analysis -- Summary")
   cli::cli_h2("Parameters")
   cli::cli_bullets(c(
+    "*" = "Word unit: {x$params$unit}",
     "*" = "Vocabulary size: {x$params$vocab_size}",
     "*" = "POS filter: {paste(x$params$pos_filter, collapse = ', ')}",
+    "*" = "Co-occurrence window: {x$params$window}",
+    "*" = "Normalization: {x$params$normalization}",
     "*" = "AS threshold percentile: {x$params$threshold_percentile}",
     "*" = "Community algorithm: {x$params$community_algorithm}",
     "*" = "Min community size: {x$params$min_community_size}"
@@ -243,16 +257,42 @@ summary.themescope <- function(object, ...) {
 
 
 #' @describeIn themescope Plot a `themescope` object (`type = "map"` or
-#'   `"network"`).
+#'   `"network"`). With `label = "terms"`, communities on the map are labelled
+#'   with their most representative terms (up to `n_label_terms`) instead of the
+#'   community id; communities keep the same colour in both views.
 #' @param type Character. `"map"` (default) or `"network"`.
+#' @param label Map point labels: `"id"` (community id, default) or `"terms"`
+#'   (the top terms of each community).
+#' @param n_label_terms Integer. Number of terms per label when `label = "terms"`
+#'   (default `3`).
 #' @export
-plot.themescope <- function(x, type = c("map", "network"), ...) {
-  type <- match.arg(type)
+plot.themescope <- function(x, type = c("map", "network"),
+                            label = c("id", "terms"), n_label_terms = 3, ...) {
+  type  <- match.arg(type)
+  label <- match.arg(label)
+
+  comm_names <- names(x$communities)
+  palette <- .themescope_palette(length(comm_names))
+
   if (type == "map") {
-    plot_themescope(psi = x$psi, cs = x$cs,
-                    community_sizes = vapply(x$communities, length, integer(1)), ...)
+    community_labels <- NULL
+    if (label == "terms") {
+      tt <- top_terms(x, n = n_label_terms, by = "relevance")
+      community_labels <- vapply(comm_names, function(cid) {
+        paste(tt$term[tt$community == cid], collapse = ", ")
+      }, character(1))
+      names(community_labels) <- comm_names
+    }
+    plot_themescope(
+      psi              = x$psi,
+      cs               = x$cs,
+      community_labels = community_labels,
+      community_sizes  = vapply(x$communities, length, integer(1)),
+      palette          = palette,
+      ...
+    )
   } else {
-    plot_network(graph = x$graph, membership = x$membership, ...)
+    plot_network(graph = x$graph, membership = x$membership, palette = palette, ...)
   }
 }
 

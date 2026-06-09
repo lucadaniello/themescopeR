@@ -2,54 +2,68 @@
 % Please edit documentation in R/network_utils.R
 \name{build_cooccurrence_matrix}
 \alias{build_cooccurrence_matrix}
-\title{Build a sentence-level co-occurrence matrix}
+\title{Build a co-occurrence (similarity) matrix}
 \usage{
 build_cooccurrence_matrix(
-  tokens_df,
+  words_df,
   vocab = NULL,
-  vocab_size = 1500,
+  unit = c("lemma", "token"),
+  vocab_size = NULL,
   pos_filter = c("NOUN", "ADJ", "PROPN"),
-  window = "sentence"
+  window = c("sentence", "document"),
+  normalization = NULL
 )
 }
 \arguments{
-\item{tokens_df}{Data frame as in \code{\link[=build_vocab]{build_vocab()}}.}
+\item{words_df}{An annotated words data frame (e.g. from \code{\link[=preprocess_texts]{preprocess_texts()}}),
+containing \code{doc_id}, \code{sentence_id}, \code{upos} and the \code{unit} column.}
 
-\item{vocab}{Character vector of vocabulary terms. If \code{NULL}, built with
-\code{\link[=build_vocab]{build_vocab()}} using \code{vocab_size} and \code{pos_filter}.}
+\item{vocab}{Optional vocabulary. If \code{NULL} (default) it is built from
+\code{words_df} with \code{\link[=build_vocab]{build_vocab()}} using \code{unit}, \code{vocab_size} and \code{pos_filter}.
+You may instead pass a \code{\link[=build_vocab]{build_vocab()}} data frame to reuse a fixed
+vocabulary; the analysis unit is then taken from its term column.}
 
-\item{vocab_size}{Integer. Passed to \code{\link[=build_vocab]{build_vocab()}} when \code{vocab} is \code{NULL}.}
+\item{unit}{Character. Word column to use: \code{"lemma"} (default) or \code{"token"}.
+Ignored when \code{vocab} is a \code{\link[=build_vocab]{build_vocab()}} data frame (the unit is inferred
+from it).}
+
+\item{vocab_size}{Integer or \code{NULL}. Passed to \code{\link[=build_vocab]{build_vocab()}} when \code{vocab} is
+\code{NULL} (\code{NULL} = keep all terms).}
 
 \item{pos_filter}{Character vector of POS tags. Passed to \code{\link[=build_vocab]{build_vocab()}} when
 \code{vocab} is \code{NULL}.}
 
-\item{window}{Character. Co-occurrence window; only \code{"sentence"} is supported.}
+\item{window}{Co-occurrence unit: \code{"sentence"} (default) counts terms that
+share a sentence; \code{"document"} counts terms that share a document.}
+
+\item{normalization}{Similarity measure applied to the counts: one of
+\code{"association"}, \code{"equivalence"}, \code{"jaccard"}, \code{"salton"}, \code{"inclusion"}, or
+\code{"frequency"}. \code{NULL} (default) is equivalent to \code{"frequency"} (raw counts).}
 }
 \value{
 A named list with:
 \describe{
-\item{\code{cooc_matrix}}{Symmetric sparse \code{\link[Matrix]{Matrix}}
-(\code{dgCMatrix}); cell \eqn{[i,j]} = number of sentences in which terms
-\eqn{i} and \eqn{j} co-occur.}
-\item{\code{presence}}{Named integer vector \eqn{a_t}: the number of sentences
-containing each vocabulary term.}
-\item{\code{vocab}}{Character vector of vocabulary terms (matrix row/col order).}
+\item{\code{cooc_matrix}}{Symmetric sparse matrix after \code{normalization}
+(raw counts if \code{NULL}/\code{"frequency"}).}
+\item{\code{counts}}{The raw sentence/document co-occurrence counts.}
+\item{\code{presence}}{Named integer vector \eqn{a_t} (units containing each term).}
+\item{\code{vocab}}{The vocabulary data frame used.}
+\item{\code{unit}, \code{window}, \code{normalization}}{The settings used.}
 }
 }
 \description{
-Counts how many sentences each pair of vocabulary terms co-occur in (each
-pair counted at most once per sentence). The matrix is symmetric with a zero
-diagonal. Also returns the \strong{presence} \eqn{a_t} of each term: the number of
-sentences containing it. Presence (not raw token frequency) is the correct
-marginal for the Association Strength normalisation, since the co-occurrence
-counts are themselves sentence-based.
+Counts how many text units (sentences or documents) each pair of vocabulary
+terms co-occur in (each pair counted at most once per unit), then optionally
+re-weights the counts with a similarity measure (see \code{\link[=normalize_cooccurrence]{normalize_cooccurrence()}}).
+Also returns the \strong{presence} \eqn{a_t} of each term — the number of units
+containing it — which is the correct marginal for the normalisation.
 }
 \examples{
 df <- data.frame(
   doc_id = c(1, 1, 1, 1, 1), sentence_id = c(1, 1, 1, 2, 2),
   lemma = c("dog", "cat", "dog", "bird", "cat"), upos = "NOUN"
 )
-res <- build_cooccurrence_matrix(df, vocab_size = 10)
+res <- build_cooccurrence_matrix(df, normalization = "association")
 res$cooc_matrix
 
 }

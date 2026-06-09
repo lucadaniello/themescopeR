@@ -2,36 +2,50 @@
 % Please edit documentation in R/network_utils.R
 \name{build_vocab}
 \alias{build_vocab}
-\title{Build a vocabulary from a tokens data frame}
+\title{Build a vocabulary data frame from an annotated words data frame}
 \usage{
 build_vocab(
-  tokens_df,
-  vocab_size = 1500,
+  words_df,
+  unit = c("lemma", "token"),
+  vocab_size = NULL,
   pos_filter = c("NOUN", "ADJ", "PROPN")
 )
 }
 \arguments{
-\item{tokens_df}{Data frame with \code{doc_id}, \code{sentence_id}, \code{upos}, and at least
-one of \code{lemma} or \code{token}. See \code{\link[=validate_tokens_df]{validate_tokens_df()}}.}
+\item{words_df}{An annotated data frame (e.g. the output of
+\code{\link[=preprocess_texts]{preprocess_texts()}}). The "word" used to build the vocabulary is the column
+named by \code{unit} (\code{token} or \code{lemma}); the data frame must also contain
+\code{doc_id}, \code{sentence_id} and \code{upos}. See \code{\link[=validate_words_df]{validate_words_df()}}.}
 
-\item{vocab_size}{Integer. Maximum number of terms to keep (default \code{1500}).}
+\item{unit}{Character. Which column to use as the word: \code{"lemma"} (default) or
+\code{"token"}. When \code{"lemma"}, missing lemmas fall back to the token.}
+
+\item{vocab_size}{Integer or \code{NULL}. If \code{NULL} (default) the vocabulary
+contains \strong{all} terms; otherwise only the top \code{vocab_size} by frequency.}
 
 \item{pos_filter}{Character vector of Universal POS tags to retain (default
 \code{c("NOUN", "ADJ", "PROPN")}).}
 }
 \value{
-A character vector of at most \code{vocab_size} terms, ordered by
-decreasing frequency.
+A data frame ordered by decreasing frequency with columns:
+\describe{
+\item{\code{token} or \code{lemma}}{The word (lower-cased); the column is named
+after \code{unit}.}
+\item{\code{freq}}{Integer term frequency (number of occurrences).}
+\item{\code{upos}}{The dominant (most frequent) Universal POS tag of the term.}
+}
 }
 \description{
-Identifies the most frequent terms in a POS-filtered tokens data frame. Uses
-the \code{lemma} column when available, falling back to \code{token}.
+Counts the most frequent terms in a POS-filtered, annotated data frame and
+returns them as a tidy vocabulary. The analysis unit — the "word" — can be the
+surface \code{token} or the \code{lemma}.
 }
 \examples{
 df <- data.frame(
   doc_id = c(1, 1, 1, 1), sentence_id = c(1, 1, 1, 2),
+  token = c("dogs", "cats", "dog", "birds"),
   lemma = c("dog", "cat", "dog", "bird"), upos = "NOUN"
 )
-build_vocab(df, vocab_size = 10)
+build_vocab(df, unit = "lemma")
 
 }

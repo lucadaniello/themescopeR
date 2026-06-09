@@ -1,20 +1,54 @@
+# Internal: a fixed palette of 40 pastel colours (no external package needed).
+# Community i is drawn with colour i (recycled beyond 40). Used by BOTH the map
+# and the network so that a community has the same colour in both views.
+.themescope_palette <- function(n = NULL) {
+  pal <- c(
+    "#AEC6CF", "#FFB347", "#B39EB5", "#FF6961", "#77DD77", "#FDFD96", "#84B6F4",
+    "#FDCAE1", "#CB99C9", "#C1E1C1", "#FFD1DC", "#B19CD9", "#F49AC2", "#FFB7CE",
+    "#A2D2FF", "#BDE0FE", "#FFC8A2", "#E2F0CB", "#B5EAD7", "#C7CEEA", "#FFDAC1",
+    "#FF9AA2", "#E0BBE4", "#D5AAFF", "#85E3FF", "#B9FBC0", "#FBE7C6", "#A0C4FF",
+    "#FFADAD", "#FFD6A5", "#FDFFB6", "#CAFFBF", "#9BF6FF", "#BDB2FF", "#FFC6FF",
+    "#D0F4DE", "#E4C1F9", "#F1C0E8", "#CFBAF0", "#98F5E1"
+  )
+  if (is.null(n)) return(pal)
+  rep(pal, length.out = n)
+}
+
+#' ThemeScope pastel colour palette
+#'
+#' Returns the built-in palette of 40 pastel colours used to colour communities
+#' consistently across [plot_themescope()] and [plot_network()].
+#'
+#' @param n Optional number of colours to return (recycled if `n > 40`).
+#'
+#' @return A character vector of hex colours.
+#'
+#' @examples
+#' themescope_colours(5)
+#'
+#' @export
+themescope_colours <- function(n = NULL) .themescope_palette(n)
+
+
 #' Create a ThemeScope representational map
 #'
 #' Produces the two-dimensional strategic diagram locating each community in the
 #' space defined by z-scored PSI (x-axis, anchoring) and z-scored CS (y-axis,
-#' objectification). The four quadrants correspond to Social Representation
-#' Theory constructs (see [assign_quadrant()]).
+#' objectification). Points are **coloured by community** with the shared pastel
+#' palette (so colours match [plot_network()]); the four SRT quadrants are
+#' annotated in the corners. The only legend is community size (number of terms),
+#' placed at the bottom.
 #'
 #' @param psi Named numeric vector of PSI values (one per community).
 #' @param cs Named numeric vector of CS values (one per community); may contain
 #'   `NA`.
-#' @param community_labels Optional named character vector of display labels. If
-#'   `NULL`, community names from `psi` are used.
-#' @param community_sizes Optional named numeric vector of community sizes used
-#'   to scale point area.
+#' @param community_labels Optional named character vector of point labels (e.g.
+#'   top terms per community). If `NULL`, community names from `psi` are used.
+#' @param community_sizes Optional named numeric vector of community sizes (the
+#'   number of terms in each community) used to scale point area.
 #' @param title Character. Plot title (default `"ThemeScope Map"`).
-#' @param highlight Optional character vector of community names to ring.
-#' @param palette Optional named character vector of quadrant colours.
+#' @param palette Optional vector of community colours (one per community, in the
+#'   order of `psi`). Defaults to [themescope_colours()].
 #' @param ... Currently unused.
 #'
 #' @return A \code{\link[ggplot2]{ggplot}} object.
@@ -31,7 +65,6 @@ plot_themescope <- function(psi,
                             community_labels = NULL,
                             community_sizes  = NULL,
                             title            = "ThemeScope Map",
-                            highlight        = NULL,
                             palette          = NULL,
                             ...) {
   if (!is.numeric(psi)) cli::cli_abort("{.arg psi} must be numeric.")
@@ -41,7 +74,7 @@ plot_themescope <- function(psi,
   if (is.null(comm_names)) comm_names <- paste0("C", seq_along(psi))
 
   psi_z <- zscore(psi)
-  cs_z  <- if (all(is.na(cs))) rep(0, length(cs)) else zscore(cs)
+  cs_z  <- if (all(is.na(cs))) rep(0, length(cs)) else suppressWarnings(zscore(cs))
 
   labels <- if (!is.null(community_labels)) community_labels[comm_names] else comm_names
   labels[is.na(labels)] <- comm_names[is.na(labels)]
@@ -49,109 +82,83 @@ plot_themescope <- function(psi,
   sizes <- if (!is.null(community_sizes)) as.numeric(community_sizes[comm_names]) else rep(4, length(comm_names))
   sizes[is.na(sizes)] <- 4
 
-  quadrant     <- assign_quadrant(psi_z, cs_z)
-  is_highlight <- if (!is.null(highlight)) comm_names %in% highlight else rep(FALSE, length(comm_names))
+  if (is.null(palette)) palette <- .themescope_palette(length(comm_names))
+  col_map <- stats::setNames(palette[seq_along(comm_names)], comm_names)
 
   plot_df <- data.frame(
-    community = comm_names,
+    community = factor(comm_names, levels = comm_names),
     label     = as.character(labels),
     psi_z     = psi_z,
     cs_z      = cs_z,
     size      = sizes,
-    quadrant  = quadrant,
-    highlight = is_highlight,
     stringsAsFactors = FALSE
   )
 
-  quad_levels <- c("Stable Core", "Ideological Core",
-                   "Emerging Practices", "Latent Representations")
-  if (is.null(palette)) {
-    palette <- c(
-      "Stable Core"            = "#2166AC",
-      "Ideological Core"       = "#D6604D",
-      "Emerging Practices"     = "#4DAC26",
-      "Latent Representations" = "#B2ABD2"
-    )
-  } else if (is.null(names(palette))) {
-    palette <- stats::setNames(palette, quad_levels[seq_along(palette)])
-  }
-
+  # Quadrant corner annotations (text only; no colour legend)
   x_range <- range(c(psi_z, 0), na.rm = TRUE)
   y_range <- range(c(cs_z, 0), na.rm = TRUE)
-  x_margin <- diff(x_range) * 0.05
-  y_margin <- diff(y_range) * 0.05
-
+  xpad <- diff(x_range) * 0.14 + 0.2
+  ypad <- diff(y_range) * 0.14 + 0.2
   quad_df <- data.frame(
-    x = c(x_range[2] + x_margin * 0.5, x_range[2] + x_margin * 0.5,
-          x_range[1] - x_margin * 0.5, x_range[1] - x_margin * 0.5),
-    y = c(y_range[2] + y_margin * 0.5, y_range[1] - y_margin * 0.5,
-          y_range[2] + y_margin * 0.5, y_range[1] - y_margin * 0.5),
-    label = quad_levels,
+    x = c(x_range[2] + xpad, x_range[2] + xpad, x_range[1] - xpad, x_range[1] - xpad),
+    y = c(y_range[2] + ypad, y_range[1] - ypad, y_range[2] + ypad, y_range[1] - ypad),
+    label = c("Stable Core", "Ideological Core", "Emerging Practices", "Latent Representations"),
+    hjust = c(1, 1, 0, 0),
     stringsAsFactors = FALSE
   )
 
-  p <- ggplot2::ggplot(plot_df, ggplot2::aes(x = .data$psi_z, y = .data$cs_z, colour = .data$quadrant)) +
-    ggplot2::geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50", linewidth = 0.5) +
-    ggplot2::geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50", linewidth = 0.5) +
-    ggplot2::geom_point(ggplot2::aes(size = .data$size), alpha = 0.85, stroke = 0.5) +
+  ggplot2::ggplot(plot_df, ggplot2::aes(x = .data$psi_z, y = .data$cs_z)) +
+    ggplot2::geom_vline(xintercept = 0, linetype = "dashed", colour = "grey60", linewidth = 0.4) +
+    ggplot2::geom_hline(yintercept = 0, linetype = "dashed", colour = "grey60", linewidth = 0.4) +
+    ggplot2::geom_point(ggplot2::aes(size = .data$size, fill = .data$community),
+                        shape = 21, colour = "grey30", stroke = 0.4, alpha = 0.95) +
     ggrepel::geom_text_repel(
       ggplot2::aes(label = .data$label),
-      size = 3.2, max.overlaps = 30, segment.colour = "grey60",
-      segment.size = 0.3, show.legend = FALSE
+      size = 3.1, colour = "grey15", fontface = "bold",
+      max.overlaps = Inf, box.padding = 0.6, point.padding = 0.3,
+      min.segment.length = 0, force = 3, force_pull = 0.5,
+      segment.colour = "grey70", segment.size = 0.3, seed = 42
     ) +
-    ggplot2::annotate(
-      "text", x = quad_df$x, y = quad_df$y, label = quad_df$label,
-      size = 3, colour = "grey35", fontface = "italic"
-    ) +
-    ggplot2::scale_colour_manual(values = palette, name = "Quadrant",
-                                 drop = FALSE, na.value = "grey70") +
-    ggplot2::scale_size_continuous(
-      name = "Community size", range = c(3, 12),
-      guide = ggplot2::guide_legend(override.aes = list(colour = "grey40"))
-    ) +
+    ggplot2::annotate("text", x = quad_df$x, y = quad_df$y, label = quad_df$label,
+                      hjust = quad_df$hjust, size = 3, colour = "grey45", fontface = "italic") +
+    ggplot2::scale_fill_manual(values = col_map, guide = "none") +
+    ggplot2::scale_size_continuous(name = "Community size (terms)", range = c(3, 13)) +
+    ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = 0.18)) +
+    ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = 0.18)) +
     ggplot2::labs(
       title = title,
-      x = expression(italic("PSI")["z"] ~ "(Prototypical Salience)"),
-      y = expression(italic("CS")["z"] ~ "(Concreteness Score)")
+      x = expression(italic("PSI")["z"] ~ "(Prototypical Salience - anchoring)"),
+      y = expression(italic("CS")["z"] ~ "(Concreteness - objectification)")
     ) +
     ggplot2::theme_minimal(base_size = 12) +
     ggplot2::theme(
-      plot.title = ggplot2::element_text(face = "bold", hjust = 0.5),
+      plot.title       = ggplot2::element_text(face = "bold", hjust = 0.5),
       panel.grid.minor = ggplot2::element_blank(),
-      legend.position = "right"
+      legend.position  = "bottom"
     )
-
-  if (any(is_highlight)) {
-    p <- p + ggplot2::geom_point(
-      data = plot_df[plot_df$highlight, , drop = FALSE],
-      ggplot2::aes(size = .data$size),
-      shape = 21, colour = "black", stroke = 1.5, fill = NA, show.legend = FALSE
-    )
-  }
-
-  p
 }
 
 
-#' Plot a community-coloured semantic network
+#' Plot a community-coloured semantic network (igraph)
 #'
-#' Visualises the co-occurrence network with nodes coloured by community. Uses
-#' \pkg{ggraph} for a ggplot2 output when available, falling back to base
-#' \code{igraph} plotting otherwise.
+#' Draws the co-occurrence network with \pkg{igraph}: nodes are coloured by
+#' community using the shared pastel palette (matching [plot_themescope()]),
+#' edges are light grey, node size scales with degree, and the highest-degree
+#' terms of each community are labelled.
 #'
 #' @param graph An \code{igraph} object.
 #' @param membership Named integer vector of community assignments from
-#'   [detect_communities()].
-#' @param community_labels Optional named character vector mapping community IDs
-#'   to labels.
-#' @param layout Character layout algorithm: `"fr"` (default), `"kk"`, `"dh"`,
-#'   `"lgl"`.
+#'   [detect_communities()] (`NA` for unassigned vertices).
+#' @param palette Optional vector of community colours (community `i` uses
+#'   `palette[i]`). Defaults to [themescope_colours()].
+#' @param layout Character layout: `"fr"` (default), `"kk"`, `"dh"`, `"lgl"`.
 #' @param top_n_labels Integer. Highest-degree nodes per community to label
-#'   (default `10`).
-#' @param ... Passed to the underlying plotting function.
+#'   (default `8`).
+#' @param edge_color Colour of the edges (default light grey).
+#' @param seed Optional integer seed for a reproducible layout.
+#' @param ... Passed to [igraph::plot.igraph()].
 #'
-#' @return A \code{\link[ggplot2]{ggplot}} object (if \pkg{ggraph} is available)
-#'   or invisibly `NULL` after a base plot.
+#' @return Invisibly `NULL`; called for the plot it draws.
 #'
 #' @examples
 #' \dontrun{
@@ -161,9 +168,11 @@ plot_themescope <- function(psi,
 #' @export
 plot_network <- function(graph,
                          membership,
-                         community_labels = NULL,
-                         layout           = "fr",
-                         top_n_labels     = 10,
+                         palette      = NULL,
+                         layout       = "fr",
+                         top_n_labels = 8,
+                         edge_color   = "grey85",
+                         seed         = NULL,
                          ...) {
   if (!igraph::is_igraph(graph)) {
     cli::cli_abort("{.arg graph} must be an {.cls igraph} object.")
@@ -173,49 +182,43 @@ plot_network <- function(graph,
   comm_ids     <- membership[vertex_names]
   deg          <- igraph::degree(graph)
 
+  if (is.null(palette)) {
+    n_comms <- suppressWarnings(max(comm_ids, na.rm = TRUE))
+    palette <- .themescope_palette(if (is.finite(n_comms)) n_comms else 1)
+  }
+  node_col <- ifelse(is.na(comm_ids), "grey85", palette[comm_ids])
+
+  # Label the top-degree nodes of each community
   label_nodes <- character(0)
-  for (cid in unique(comm_ids[!is.na(comm_ids)])) {
-    cid_nodes <- names(comm_ids)[!is.na(comm_ids) & comm_ids == cid]
-    cid_deg   <- deg[cid_nodes]
-    top_nodes <- names(sort(cid_deg, decreasing = TRUE))[seq_len(min(top_n_labels, length(cid_nodes)))]
-    label_nodes <- c(label_nodes, top_nodes)
+  for (cid in sort(unique(comm_ids[!is.na(comm_ids)]))) {
+    cn  <- names(comm_ids)[!is.na(comm_ids) & comm_ids == cid]
+    top <- names(sort(deg[cn], decreasing = TRUE))[seq_len(min(top_n_labels, length(cn)))]
+    label_nodes <- c(label_nodes, top)
   }
   node_labels <- ifelse(vertex_names %in% label_nodes, vertex_names, "")
-
-  n_comms  <- max(comm_ids, na.rm = TRUE)
-  pal      <- grDevices::hcl.colors(n_comms, palette = "Set2")
-  node_col <- ifelse(is.na(comm_ids), "grey80", pal[comm_ids])
-
-  if (requireNamespace("ggraph", quietly = TRUE)) {
-    igraph::V(graph)$community   <- as.character(comm_ids)
-    igraph::V(graph)$node_label  <- node_labels
-    igraph::V(graph)$node_degree <- deg[vertex_names]
-
-    p <- ggraph::ggraph(graph, layout = layout) +
-      ggraph::geom_edge_link(ggplot2::aes(alpha = .data$weight), colour = "grey60",
-                             linewidth = 0.3, show.legend = FALSE) +
-      ggraph::geom_node_point(ggplot2::aes(colour = .data$community, size = .data$node_degree),
-                              alpha = 0.85) +
-      ggraph::geom_node_text(ggplot2::aes(label = .data$node_label), size = 2.8,
-                             repel = TRUE, max.overlaps = 20, show.legend = FALSE) +
-      ggplot2::scale_size_continuous(range = c(2, 8), guide = "none") +
-      ggplot2::theme_void() +
-      ggplot2::labs(title = "Semantic Co-occurrence Network", colour = "Community") +
-      ggplot2::theme(plot.title = ggplot2::element_text(face = "bold", hjust = 0.5))
-    return(p)
-  }
 
   layout_fn <- switch(layout,
     fr = igraph::layout_with_fr, kk = igraph::layout_with_kk,
     dh = igraph::layout_with_dh, lgl = igraph::layout_with_lgl,
     igraph::layout_with_fr
   )
+  if (!is.null(seed)) set.seed(as.integer(seed))
+  lyt <- layout_fn(graph)
+
   igraph::plot.igraph(
-    graph, layout = layout_fn(graph),
-    vertex.color = node_col, vertex.label = node_labels, vertex.label.cex = 0.7,
-    vertex.size = 4 + log1p(deg[vertex_names]) * 2, edge.width = 0.5,
-    edge.color = "grey70", vertex.frame.color = NA,
-    main = "Semantic Co-occurrence Network"
+    graph,
+    layout             = lyt,
+    vertex.color       = node_col,
+    vertex.frame.color = "grey50",
+    vertex.size        = 4 + log1p(deg[vertex_names]) * 2.5,
+    vertex.label       = node_labels,
+    vertex.label.cex   = 0.7,
+    vertex.label.color = "grey15",
+    vertex.label.family = "sans",
+    edge.color         = edge_color,
+    edge.width         = 0.6,
+    main               = "Semantic Co-occurrence Network",
+    ...
   )
   invisible(NULL)
 }

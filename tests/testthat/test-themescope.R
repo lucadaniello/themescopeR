@@ -31,12 +31,25 @@ test_that("as.data.frame and top_terms work on a themescope object", {
   expect_lte(max(tt$rank), 3)
 })
 
-test_that("plot.themescope builds a ggplot map", {
+test_that("plot.themescope builds a ggplot map (id and term labels)", {
   toks <- make_two_topic_tokens()
   res <- themescope(toks, concreteness_lexicon = NULL,
                     vocab_size = 16, threshold_percentile = 0.3,
                     min_community_size = 3, seed = 1, verbose = FALSE)
   expect_s3_class(plot(res, type = "map"), "ggplot")
+  expect_s3_class(plot(res, type = "map", label = "terms", n_label_terms = 2), "ggplot")
+})
+
+test_that("themescope vocab is a build_vocab data frame and stores params", {
+  toks <- make_two_topic_tokens()
+  res <- themescope(toks, concreteness_lexicon = NULL, unit = "lemma",
+                    vocab_size = 16, threshold_percentile = 0.3,
+                    min_community_size = 3, normalization = "association",
+                    community_algorithm = "louvain", seed = 1, verbose = FALSE)
+  expect_s3_class(res$vocab, "data.frame")
+  expect_true(all(c("lemma", "freq", "upos") %in% names(res$vocab)))
+  expect_equal(res$params$normalization, "association")
+  expect_equal(res$params$unit, "lemma")
 })
 
 test_that("themescope errors on a raw collection without a model", {

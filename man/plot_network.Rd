@@ -2,14 +2,16 @@
 % Please edit documentation in R/plot.R
 \name{plot_network}
 \alias{plot_network}
-\title{Plot a community-coloured semantic network}
+\title{Plot a community-coloured semantic network (igraph)}
 \usage{
 plot_network(
   graph,
   membership,
-  community_labels = NULL,
+  palette = NULL,
   layout = "fr",
-  top_n_labels = 10,
+  top_n_labels = 8,
+  edge_color = "grey85",
+  seed = NULL,
   ...
 )
 }
@@ -17,27 +19,30 @@ plot_network(
 \item{graph}{An \code{igraph} object.}
 
 \item{membership}{Named integer vector of community assignments from
-\code{\link[=detect_communities]{detect_communities()}}.}
+\code{\link[=detect_communities]{detect_communities()}} (\code{NA} for unassigned vertices).}
 
-\item{community_labels}{Optional named character vector mapping community IDs
-to labels.}
+\item{palette}{Optional vector of community colours (community \code{i} uses
+\code{palette[i]}). Defaults to \code{\link[=themescope_colours]{themescope_colours()}}.}
 
-\item{layout}{Character layout algorithm: \code{"fr"} (default), \code{"kk"}, \code{"dh"},
-\code{"lgl"}.}
+\item{layout}{Character layout: \code{"fr"} (default), \code{"kk"}, \code{"dh"}, \code{"lgl"}.}
 
 \item{top_n_labels}{Integer. Highest-degree nodes per community to label
-(default \code{10}).}
+(default \code{8}).}
 
-\item{...}{Passed to the underlying plotting function.}
+\item{edge_color}{Colour of the edges (default light grey).}
+
+\item{seed}{Optional integer seed for a reproducible layout.}
+
+\item{...}{Passed to \code{\link[igraph:plot.igraph]{igraph::plot.igraph()}}.}
 }
 \value{
-A \code{\link[ggplot2]{ggplot}} object (if \pkg{ggraph} is available)
-or invisibly \code{NULL} after a base plot.
+Invisibly \code{NULL}; called for the plot it draws.
 }
 \description{
-Visualises the co-occurrence network with nodes coloured by community. Uses
-\pkg{ggraph} for a ggplot2 output when available, falling back to base
-\code{igraph} plotting otherwise.
+Draws the co-occurrence network with \pkg{igraph}: nodes are coloured by
+community using the shared pastel palette (matching \code{\link[=plot_themescope]{plot_themescope()}}),
+edges are light grey, node size scales with degree, and the highest-degree
+terms of each community are labelled.
 }
 \examples{
 \dontrun{

@@ -8,6 +8,7 @@ detect_communities(
   graph,
   algorithm = "walktrap",
   steps = 4,
+  resolution = 1,
   min_size = 10,
   seed = NULL,
   verbose = TRUE
@@ -17,16 +18,21 @@ detect_communities(
 \item{graph}{An undirected weighted \code{igraph} object, e.g. from
 \code{\link[=build_cooccurrence_network]{build_cooccurrence_network()}}.}
 
-\item{algorithm}{Character. \code{"walktrap"} (default) or \code{"louvain"}.}
+\item{algorithm}{Character. One of \code{"walktrap"} (default), \code{"louvain"} or
+\code{"leiden"}.}
 
 \item{steps}{Integer. Number of steps for the walktrap random walk (default
-\code{4}). Ignored when \code{algorithm = "louvain"}.}
+\code{4}). Used only when \code{algorithm = "walktrap"}.}
+
+\item{resolution}{Numeric resolution parameter for \code{"louvain"} and \code{"leiden"}
+(default \code{1}); higher values yield more, smaller communities. Ignored by
+walktrap.}
 
 \item{min_size}{Integer. Minimum number of members for a community to be
 retained; smaller communities are assigned \code{NA} membership (default \code{10}).}
 
 \item{seed}{Optional integer. If supplied, sets the random seed before
-community detection for reproducibility (Louvain is stochastic).}
+community detection for reproducibility (Louvain and Leiden are stochastic).}
 
 \item{verbose}{Logical. Print a progress message (default \code{TRUE}).}
 }
@@ -47,6 +53,7 @@ and filters out small communities.
 \examples{
 \dontrun{
 comm <- detect_communities(net, algorithm = "walktrap", min_size = 10, seed = 1)
+comm <- detect_communities(net, algorithm = "leiden", resolution = 1, seed = 1)
 }
 
 }
