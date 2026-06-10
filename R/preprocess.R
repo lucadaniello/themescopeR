@@ -204,6 +204,10 @@ ts_model_path <- function(language, treebank = NULL, model_dir = themescope_cach
 #' @param text_col Name of the text column (default `"text"`).
 #' @param doc_id_col Name of the document-id column (default `"doc_id"`).
 #' @param batch_size Integer. Documents processed per batch (default `500`).
+#'   Ignored when `parallel_cores > 1` (udpipe chunks the work itself).
+#' @param parallel_cores Integer (default `1`). If greater than 1, annotation is
+#'   parallelised across that many CPU cores via [udpipe::udpipe()], which
+#'   speeds up large corpora considerably.
 #' @param verbose Logical. Print progress messages (default `TRUE`).
 #'
 #' @return The **complete** \pkg{udpipe} annotation as a data frame (one row per
@@ -225,10 +229,11 @@ ts_model_path <- function(language, treebank = NULL, model_dir = themescope_cach
 #' @export
 preprocess_texts <- function(collection,
                              model,
-                             text_col   = "text",
-                             doc_id_col = "doc_id",
-                             batch_size = 500,
-                             verbose    = TRUE) {
+                             text_col       = "text",
+                             doc_id_col     = "doc_id",
+                             batch_size     = 500,
+                             parallel_cores = 1,
+                             verbose        = TRUE) {
   if (!is.data.frame(collection)) {
     cli::cli_abort("{.arg collection} must be a data frame.")
   }
@@ -245,31 +250,44 @@ preprocess_texts <- function(collection,
   docids <- as.character(collection[[doc_id_col]])
   n      <- length(texts)
 
-  themescope_progress(
-    paste0("Annotating ", n, " documents (batch size = ", batch_size, ") ..."), verbose
-  )
-
-  n_batches <- ceiling(n / batch_size)
-  chunks    <- vector("list", n_batches)
-
-  for (i in seq_len(n_batches)) {
-    idx_start <- (i - 1L) * batch_size + 1L
-    idx_end   <- min(i * batch_size, n)
-    if (verbose && n_batches > 1) {
-      themescope_progress(
-        paste0("  Batch ", i, "/", n_batches, " (docs ", idx_start, "-", idx_end, ")"),
-        verbose
-      )
-    }
-    ann <- udpipe::udpipe_annotate(
-      object = model,
-      x      = texts[idx_start:idx_end],
-      doc_id = docids[idx_start:idx_end]
+  if (parallel_cores > 1) {
+    themescope_progress(
+      paste0("Annotating ", n, " documents on ", as.integer(parallel_cores), " cores ..."),
+      verbose
     )
-    chunks[[i]] <- as.data.frame(ann, detailed = FALSE)
-  }
+    out <- udpipe::udpipe(
+      x      = data.frame(doc_id = docids, text = texts, stringsAsFactors = FALSE),
+      object = model,
+      parallel.cores = as.integer(parallel_cores)
+    )
+    out <- as.data.frame(out, stringsAsFactors = FALSE)
+  } else {
+    themescope_progress(
+      paste0("Annotating ", n, " documents (batch size = ", batch_size, ") ..."), verbose
+    )
 
-  out <- do.call(rbind, chunks)
+    n_batches <- ceiling(n / batch_size)
+    chunks    <- vector("list", n_batches)
+
+    for (i in seq_len(n_batches)) {
+      idx_start <- (i - 1L) * batch_size + 1L
+      idx_end   <- min(i * batch_size, n)
+      if (verbose && n_batches > 1) {
+        themescope_progress(
+          paste0("  Batch ", i, "/", n_batches, " (docs ", idx_start, "-", idx_end, ")"),
+          verbose
+        )
+      }
+      ann <- udpipe::udpipe_annotate(
+        object = model,
+        x      = texts[idx_start:idx_end],
+        doc_id = docids[idx_start:idx_end]
+      )
+      chunks[[i]] <- as.data.frame(ann, detailed = FALSE)
+    }
+
+    out <- dplyr::bind_rows(chunks)
+  }
   rownames(out) <- NULL
 
   themescope_progress(

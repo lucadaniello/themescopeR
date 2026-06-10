@@ -10,6 +10,7 @@ preprocess_texts(
   text_col = "text",
   doc_id_col = "doc_id",
   batch_size = 500,
+  parallel_cores = 1,
   verbose = TRUE
 )
 }
@@ -25,7 +26,12 @@ language name (e.g. \code{"english"}) which is downloaded and cached via
 
 \item{doc_id_col}{Name of the document-id column (default \code{"doc_id"}).}
 
-\item{batch_size}{Integer. Documents processed per batch (default \code{500}).}
+\item{batch_size}{Integer. Documents processed per batch (default \code{500}).
+Ignored when \code{parallel_cores > 1} (udpipe chunks the work itself).}
+
+\item{parallel_cores}{Integer (default \code{1}). If greater than 1, annotation is
+parallelised across that many CPU cores via \code{\link[udpipe:udpipe]{udpipe::udpipe()}}, which
+speeds up large corpora considerably.}
 
 \item{verbose}{Logical. Print progress messages (default \code{TRUE}).}
 }

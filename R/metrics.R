@@ -148,6 +148,57 @@ compute_cs <- function(graph, communities, concreteness_lexicon = brysbaert) {
 }
 
 
+#' Concreteness lexicon coverage diagnostics
+#'
+#' Reports how many terms have a rating in a concreteness lexicon — overall and,
+#' for a [themescope()] result, per community. A low coverage means the
+#' Concreteness Score (CS) is computed on few edges and may be unreliable; this
+#' typically happens when the corpus language does not match the lexicon (the
+#' bundled [brysbaert] norms cover **English** words only).
+#'
+#' @param x Either a `themescope` object (coverage is reported per community and
+#'   for the whole network) or a character vector of terms.
+#' @param lexicon Data frame with columns `"word"` and `"conc.m"`. Defaults to
+#'   the bundled [brysbaert] norms.
+#'
+#' @return A data frame with columns `community` (community id, or `"(all)"` for
+#'   the overall row), `n_terms`, `n_matched` and `coverage` (proportion in
+#'   \eqn{[0, 1]}).
+#'
+#' @seealso [compute_cs()], [match_concreteness()].
+#'
+#' @examples
+#' lex <- data.frame(word = c("dog", "cat"), conc.m = c(4.8, 4.7))
+#' lexicon_coverage(c("dog", "cat", "freedom"), lex)
+#'
+#' @export
+lexicon_coverage <- function(x, lexicon = brysbaert) {
+  coverage_row <- function(label, terms) {
+    matched <- sum(!is.na(match_concreteness(terms, lexicon)))
+    data.frame(
+      community = label,
+      n_terms   = length(terms),
+      n_matched = matched,
+      coverage  = if (length(terms) > 0) matched / length(terms) else NA_real_,
+      stringsAsFactors = FALSE
+    )
+  }
+
+  if (inherits(x, "themescope")) {
+    rows <- lapply(names(x$communities), function(cid) {
+      coverage_row(cid, x$communities[[cid]])
+    })
+    out <- rbind(do.call(rbind, rows), coverage_row("(all)", igraph::V(x$graph)$name))
+  } else if (is.character(x)) {
+    out <- coverage_row("(all)", x)
+  } else {
+    cli::cli_abort("{.arg x} must be a {.cls themescope} object or a character vector of terms.")
+  }
+  rownames(out) <- NULL
+  out
+}
+
+
 #' Compute term relevance within communities
 #'
 #' Implements the ThemeScope case-study term-relevance measure (Eq. 4), which
@@ -191,21 +242,25 @@ term_relevance <- function(graph, membership, presence) {
   w  <- igraph::E(graph)$weight
   if (is.null(w)) w <- rep(1, nrow(el))
 
-  # Accumulate in/out association strength per node
+  # Accumulate in/out association strength per node, vectorised over the edge
+  # list: stack both endpoints of every edge and sum the weights with rowsum().
+  ca <- comm_ids[el[, 1]]
+  cb <- comm_ids[el[, 2]]
+  same <- !is.na(ca) & !is.na(cb) & ca == cb
+
+  ends2 <- c(el[, 1], el[, 2])
+  w2    <- c(w, w)
+  same2 <- c(same, same)
+
   s_in  <- stats::setNames(numeric(length(vnames)), vnames)
   s_out <- stats::setNames(numeric(length(vnames)), vnames)
-
-  for (k in seq_len(nrow(el))) {
-    a <- el[k, 1]; b <- el[k, 2]; wt <- w[k]
-    ca <- comm_ids[a]; cb <- comm_ids[b]
-    same <- !is.na(ca) && !is.na(cb) && ca == cb
-    if (same) {
-      s_in[a] <- s_in[a] + wt
-      s_in[b] <- s_in[b] + wt
-    } else {
-      s_out[a] <- s_out[a] + wt
-      s_out[b] <- s_out[b] + wt
-    }
+  if (any(same2)) {
+    acc <- rowsum(w2[same2], ends2[same2])
+    s_in[rownames(acc)] <- acc[, 1]
+  }
+  if (any(!same2)) {
+    acc <- rowsum(w2[!same2], ends2[!same2])
+    s_out[rownames(acc)] <- acc[, 1]
   }
 
   a_t <- presence[vnames]

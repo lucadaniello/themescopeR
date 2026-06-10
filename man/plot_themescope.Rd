@@ -11,6 +11,7 @@ plot_themescope(
   community_sizes = NULL,
   title = "ThemeScope Map",
   palette = NULL,
+  quadrant_fill = FALSE,
   ...
 )
 }
@@ -30,6 +31,9 @@ number of terms in each community) used to scale point area.}
 
 \item{palette}{Optional vector of community colours (one per community, in the
 order of \code{psi}). Defaults to \code{\link[=themescope_colours]{themescope_colours()}}.}
+
+\item{quadrant_fill}{Logical (default \code{FALSE}). If \code{TRUE}, the four SRT
+quadrants get a soft background tint matching their corner annotations.}
 
 \item{...}{Currently unused.}
 }

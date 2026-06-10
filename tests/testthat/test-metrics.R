@@ -35,6 +35,37 @@ test_that("term_relevance returns one row per assigned vertex with relevance", {
   expect_setequal(unique(rel$community), c("C1", "C2"))
 })
 
+test_that("term_relevance matches the closed form on a 3-node graph", {
+  g <- igraph::make_graph(c("a", "b", "a", "c"), directed = FALSE)
+  igraph::E(g)$weight <- c(2, 1)
+  memb     <- c(a = 1L, b = 1L, c = 2L)
+  presence <- c(a = 3, b = 1, c = 1)
+  rel <- term_relevance(g, memb, presence)
+  # a: s_in = 2 (a-b, same community), s_out = 1 (a-c) -> log1p(3) * 2/3
+  expect_equal(rel$relevance[rel$term == "a"], log1p(3) * 2 / 3, tolerance = 1e-12)
+  # b: s_in = 2, s_out = 0 -> log1p(1) * 1
+  expect_equal(rel$relevance[rel$term == "b"], log1p(1), tolerance = 1e-12)
+  # c: s_in = 0, s_out = 1 -> 0
+  expect_equal(rel$relevance[rel$term == "c"], 0)
+})
+
+test_that("lexicon_coverage reports per-community and overall coverage", {
+  obj <- make_test_network()
+  fake <- structure(list(graph = obj$graph, communities = obj$communities),
+                    class = "themescope")
+  lex <- data.frame(word = paste0("term_", 1:5), conc.m = 3.0)
+  cov <- lexicon_coverage(fake, lex)
+  expect_s3_class(cov, "data.frame")
+  expect_equal(cov$community, c("C1", "C2", "(all)"))
+  expect_equal(cov$n_matched, c(5L, 0L, 5L))   # term_1..term_5 are all in C1
+  expect_equal(cov$coverage, c(0.5, 0, 0.25))
+
+  # Character-vector input
+  cov2 <- lexicon_coverage(c("term_1", "term_99"), lex)
+  expect_equal(cov2$coverage, 0.5)
+  expect_error(lexicon_coverage(42, lex))
+})
+
 test_that("compute_network_stats reports the expected structure", {
   obj <- make_test_network()
   st  <- compute_network_stats(obj$graph, obj$communities)

@@ -75,10 +75,14 @@ build_vocab <- function(words_df,
     cli::cli_abort("No non-empty terms found for unit {.field {unit}} after filtering.")
   }
 
+  # One (word, upos) count, then the dominant POS per word: much faster than a
+  # per-group table() on large vocabularies (ties resolved alphabetically, as
+  # count() orders upos within word).
+  pos_counts <- dplyr::count(dat, .data$word, .data$upos, name = "n_pos")
   agg <- dplyr::summarise(
-    dplyr::group_by(dat, .data$word),
-    freq = dplyr::n(),
-    upos = names(sort(table(.data$upos), decreasing = TRUE))[1],
+    dplyr::group_by(pos_counts, .data$word),
+    freq = sum(.data$n_pos),
+    upos = .data$upos[which.max(.data$n_pos)],
     .groups = "drop"
   )
   agg <- dplyr::arrange(agg, dplyr::desc(.data$freq), .data$word)
@@ -144,13 +148,15 @@ normalize_cooccurrence <- function(cooc_matrix, presence,
     )
   }
 
-  cm <- methods::as(methods::as(cooc_matrix, "dgCMatrix"), "CsparseMatrix")
+  cm <- Matrix::Matrix(cooc_matrix, sparse = TRUE)
+  cm <- Matrix::drop0(methods::as(methods::as(cm, "generalMatrix"), "CsparseMatrix"))
   if (method == "frequency") return(cm)
 
-  nz <- Matrix::which(cm != 0, arr.ind = TRUE)
-  if (nrow(nz) == 0) return(cm)
+  # Work directly on the stored triplets: one pass, no sparse re-indexing.
+  trip <- Matrix::summary(cm)
+  if (nrow(trip) == 0) return(cm)
 
-  rows <- nz[, 1]; cols <- nz[, 2]; cij <- cm[nz]
+  rows <- trip$i; cols <- trip$j; cij <- trip$x
   ai <- as.numeric(presence)[rows]
   aj <- as.numeric(presence)[cols]
 
@@ -289,33 +295,26 @@ build_cooccurrence_matrix <- function(words_df,
     paste(filtered$doc_id, filtered$sentence_id, sep = "__")
   }
 
-  units <- split(w, unit_key)
-  uniq_per_unit <- lapply(units, function(x) unique(x[x %in% terms]))
+  # Sparse unit x term incidence matrix (binary: term occurs in unit), built
+  # from de-duplicated (unit, term) pairs. Co-occurrence counts are then a
+  # single crossprod -- no per-sentence R loop.
+  unit_id <- as.integer(factor(unit_key))
+  term_id <- unname(term_idx[w])
+  pair_key <- (as.numeric(unit_id) - 1) * n + term_id
+  keep_pair <- !duplicated(pair_key)
 
-  presence <- tabulate(term_idx[unlist(uniq_per_unit, use.names = FALSE)], nbins = n)
-  names(presence) <- terms
+  incidence <- Matrix::sparseMatrix(
+    i = unit_id[keep_pair], j = term_id[keep_pair], x = 1,
+    dims = c(max(unit_id), n)
+  )
 
-  row_idx <- vector("list", length(uniq_per_unit))
-  col_idx <- vector("list", length(uniq_per_unit))
-  for (s in seq_along(uniq_per_unit)) {
-    tt <- uniq_per_unit[[s]]
-    m <- length(tt)
-    if (m < 2) next
-    idx <- term_idx[tt]
-    pairs <- which(lower.tri(matrix(0, m, m)), arr.ind = TRUE)
-    row_idx[[s]] <- idx[pairs[, 1]]
-    col_idx[[s]] <- idx[pairs[, 2]]
-  }
-  all_rows <- unlist(row_idx); all_cols <- unlist(col_idx)
+  presence <- stats::setNames(as.integer(Matrix::colSums(incidence)), terms)
 
-  if (length(all_rows) == 0) {
-    counts <- Matrix::sparseMatrix(i = integer(0), j = integer(0), x = numeric(0),
-                                   dims = c(n, n), dimnames = list(terms, terms))
-  } else {
-    upper  <- Matrix::sparseMatrix(i = all_rows, j = all_cols, x = rep(1L, length(all_rows)),
-                                   dims = c(n, n), dimnames = list(terms, terms))
-    counts <- upper + Matrix::t(upper)
-  }
+  counts <- Matrix::crossprod(incidence)  # term x term; diagonal = presence
+  counts <- methods::as(counts, "generalMatrix")
+  Matrix::diag(counts) <- 0
+  counts <- Matrix::drop0(counts)
+  dimnames(counts) <- list(terms, terms)
 
   cooc_matrix <- normalize_cooccurrence(counts, presence, method = normalization)
 

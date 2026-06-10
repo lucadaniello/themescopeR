@@ -49,6 +49,8 @@ themescope_colours <- function(n = NULL) .themescope_palette(n)
 #' @param title Character. Plot title (default `"ThemeScope Map"`).
 #' @param palette Optional vector of community colours (one per community, in the
 #'   order of `psi`). Defaults to [themescope_colours()].
+#' @param quadrant_fill Logical (default `FALSE`). If `TRUE`, the four SRT
+#'   quadrants get a soft background tint matching their corner annotations.
 #' @param ... Currently unused.
 #'
 #' @return A \code{\link[ggplot2]{ggplot}} object.
@@ -66,6 +68,7 @@ plot_themescope <- function(psi,
                             community_sizes  = NULL,
                             title            = "ThemeScope Map",
                             palette          = NULL,
+                            quadrant_fill    = FALSE,
                             ...) {
   if (!is.numeric(psi)) cli::cli_abort("{.arg psi} must be numeric.")
   if (!is.numeric(cs))  cli::cli_abort("{.arg cs} must be numeric.")
@@ -107,7 +110,19 @@ plot_themescope <- function(psi,
     stringsAsFactors = FALSE
   )
 
-  ggplot2::ggplot(plot_df, ggplot2::aes(x = .data$psi_z, y = .data$cs_z)) +
+  p <- ggplot2::ggplot(plot_df, ggplot2::aes(x = .data$psi_z, y = .data$cs_z))
+
+  if (isTRUE(quadrant_fill)) {
+    # Soft tints matching the corner annotations: SC, IC, EP, LR.
+    p <- p + ggplot2::annotate(
+      "rect",
+      xmin = c(0, 0, -Inf, -Inf), xmax = c(Inf, Inf, 0, 0),
+      ymin = c(0, -Inf, 0, -Inf), ymax = c(Inf, 0, Inf, 0),
+      fill = c("#1D9E75", "#EF9F27", "#7F77DD", "#D85A30"), alpha = 0.05
+    )
+  }
+
+  p +
     ggplot2::geom_vline(xintercept = 0, linetype = "dashed", colour = "grey60", linewidth = 0.4) +
     ggplot2::geom_hline(yintercept = 0, linetype = "dashed", colour = "grey60", linewidth = 0.4) +
     ggplot2::geom_point(ggplot2::aes(size = .data$size, fill = .data$community),
@@ -122,7 +137,7 @@ plot_themescope <- function(psi,
     ggplot2::annotate("text", x = quad_df$x, y = quad_df$y, label = quad_df$label,
                       hjust = quad_df$hjust, size = 3, colour = "grey45", fontface = "italic") +
     ggplot2::scale_fill_manual(values = col_map, guide = "none") +
-    ggplot2::scale_size_continuous(name = "Community size (terms)", range = c(3, 13)) +
+    ggplot2::scale_size_area(name = "Community size (terms)", max_size = 13) +
     ggplot2::scale_x_continuous(expand = ggplot2::expansion(mult = 0.18)) +
     ggplot2::scale_y_continuous(expand = ggplot2::expansion(mult = 0.18)) +
     ggplot2::labs(

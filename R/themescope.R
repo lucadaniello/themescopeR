@@ -152,6 +152,13 @@ themescope <- function(data,
   if (!is.null(concreteness_lexicon)) {
     themescope_progress("Step 6/6: Computing CS ...", verbose)
     cs <- compute_cs(graph, communities, concreteness_lexicon)
+    cov_all <- mean(!is.na(match_concreteness(igraph::V(graph)$name, concreteness_lexicon)))
+    if (is.finite(cov_all) && cov_all < 0.5) {
+      cli::cli_warn(c(
+        "!" = "Only {round(cov_all * 100)}% of network terms have a concreteness rating.",
+        "i" = "CS may be unreliable. Check that the lexicon language matches the corpus (the bundled Brysbaert norms are English-only); see {.fn lexicon_coverage}."
+      ))
+    }
   } else {
     themescope_progress("Step 6/6: No concreteness lexicon -- CS set to NA.", verbose)
     cs <- stats::setNames(rep(NA_real_, length(communities)), names(communities))
