@@ -96,18 +96,155 @@ console exactly.
 
 ---
 
-## Core API
+## Main functions
+
+The package mirrors the ThemeScope pipeline as a chain of small, pure,
+command-line functions. `themescope()` runs them all in order, but each stage is
+exported so you can inspect or customise any step. They are presented below in
+the order the pipeline calls them.
+
+### 1. Import — `read_collection()`
+
+```r
+read_collection(path, text_col = NULL, id_col = NULL)
+```
+
+Reads a document collection into a tidy data frame with a `doc_id` and a `text`
+column. It auto-detects the format from the file extension and supports a
+**single** `.csv`/`.tsv`, `.txt`, `.xlsx`/`.xls`, `.RData`/`.rds`, **or** a
+`.zip` containing many such files (unzipped to a temporary directory, read, and
+row-bound). Text and id columns are guessed but can be forced with `text_col` /
+`id_col`. Malformed input raises a clear, actionable error.
+
+### 2. Linguistic annotation — `preprocess_texts()`
+
+```r
+preprocess_texts(collection, model = "english", text_col = "text",
+                 doc_id_col = "doc_id", verbose = TRUE)
+```
+
+Annotates the raw texts with [`udpipe`](https://bnosac.github.io/udpipe/):
+tokenization, lemmatization, sentence segmentation and part-of-speech (UPOS)
+tagging. `model` accepts a language name, a `.udpipe` file path, or a loaded
+model object; language models come from the updated Universal Dependencies 2.15
+treebanks and are downloaded once and cached (see
+`ts_list_models()`, `ts_download_model()`, `ts_model_path()`,
+`themescope_cache_dir()`). It returns the **full** udpipe annotation
+(one row per token, with `doc_id`, `sentence_id`, `token`, `lemma`, `upos`, …),
+which is the input every downstream function expects.
+
+### 3. Vocabulary — `build_vocab()`
+
+```r
+build_vocab(words_df, unit = "lemma", vocab_size = 1500,
+            pos_filter = c("NOUN", "ADJ", "PROPN"))
+```
+
+Filters the annotation to content words (by default nouns, adjectives and proper
+nouns), counts them on the chosen `unit` (`"lemma"` or `"token"`), and keeps the
+`vocab_size` most frequent terms. Returns a data frame of `term`, `freq` and
+`upos` — the node set of the network.
+
+### 4. Co-occurrence & association strength — `build_cooccurrence_matrix()`
+
+```r
+build_cooccurrence_matrix(words_df, vocab, unit = "lemma",
+                          window = "sentence", normalization = "association")
+```
+
+Counts how often each pair of vocabulary terms appears together within the same
+`window` (`"sentence"` or `"document"`) and rescales the raw co-occurrence counts
+into a similarity matrix via `normalization`. The default `"association"`
+(Association Strength, `AS(t,t') = a_tt' / (a_t · a_t')`) is the measure used in
+the paper; `"jaccard"`, `"salton"`, `"inclusion"`, `"equivalence"` and
+`"frequency"` are also available (`normalize_cooccurrence()`,
+`compute_association_strength()` expose them individually). It returns both the
+normalised matrix and each term's **presence** `a_t` (sentence/document count),
+which PSI needs later.
+
+### 5. Network construction — `build_cooccurrence_network()`
+
+```r
+build_cooccurrence_network(as_matrix, threshold_percentile = 0.98)
+```
+
+Turns the similarity matrix into a weighted, undirected `igraph` network, keeping
+only the strongest edges (those above the `threshold_percentile`) and dropping
+isolated nodes. This sparse backbone is what gets partitioned into themes.
+
+### 6. Community detection — `detect_communities()`
+
+```r
+detect_communities(graph, algorithm = "walktrap", min_size = 10, seed = NULL)
+```
+
+Partitions the network into thematic **communities** (candidate social
+representations) with `"walktrap"` (default), `"louvain"` or `"leiden"`.
+Communities smaller than `min_size` are dropped; pass a `seed` for reproducible
+results. `get_community_subgraphs()` splits the graph into one subgraph per
+community.
+
+### 7. The two SRT indicators — `compute_psi()` & `compute_cs()`
+
+```r
+compute_psi(graph, communities, presence)
+compute_cs(graph, communities, concreteness_lexicon = brysbaert)
+```
+
+- **`compute_psi()`** — the **Prototypical Salience Index** (anchoring): how
+  structurally salient and frequent a community's terms are within the wider
+  discourse, normalised by community density.
+- **`compute_cs()`** — the **Concreteness Score** (objectification): the
+  association-weighted mean concreteness of a community's terms, using the
+  bundled `brysbaert` lexicon (`lexicon_coverage()` / `match_concreteness()`
+  report and apply the matching).
+
+Both return one value per community; `themescope()` z-scores them and places each
+community in a quadrant (`assign_quadrant()`, `zscore()`).
+
+### 8. Representative terms — `term_relevance()` & `top_terms()`
+
+```r
+term_relevance(graph, membership, presence)
+top_terms(x, n = 10, by = "relevance")
+```
+
+Rank the terms inside each community by `"relevance"` (a salience score) or
+`"degree"`, so each theme can be labelled by its most characteristic words.
+
+### 9. Visualisation — `plot_themescope()` & `plot_network()`
+
+```r
+plot_themescope(psi, cs, ...)   # the strategic diagram (ggplot2)
+plot_network(graph, ...)        # the coloured co-occurrence network
+```
+
+`plot_themescope()` draws the z-scored **PSI × CS strategic diagram** with the
+four labelled quadrants; `plot_network()` draws the community-coloured network.
+Both share `themescope_colours()`, so a community keeps the same colour on the
+map and on the network. On a `themescope` object simply call
+`plot(result, type = "map" | "network")`; `plot(result, label = "terms")` labels
+each community with its top terms.
+
+### 10. Orchestrator & GUI — `themescope()` and `run_themescope()`
+
+`themescope()` runs stages 3–9 (and stage 1–2 if you hand it a raw collection
+plus a `model`) and returns a structured `themescope` object with `print()`,
+`summary()`, `plot()` and `as.data.frame()` methods. `run_themescope()` launches
+the Shiny GUI, which calls these same exported functions.
+
+### Summary table
 
 | Function | Purpose |
 |---|---|
 | `read_collection()` | Import raw documents (single file or zip of many) → tidy data frame |
 | `preprocess_texts()` | udpipe annotation; returns the **full** udpipe data frame |
 | `ts_download_model()`, `ts_list_models()`, `ts_model_path()` | Manage cached language models |
-| `build_vocab()` | Vocabulary as a data frame (`token`/`lemma`, `freq`, `upos`) |
+| `build_vocab()` | Vocabulary as a data frame (`term`, `freq`, `upos`) |
 | `build_cooccurrence_matrix()` | Sentence/document co-occurrence + chosen `normalization` |
 | `normalize_cooccurrence()`, `compute_association_strength()` | Similarity measures (association, jaccard, salton, inclusion, equivalence) |
 | `build_cooccurrence_network()` | Thresholded weighted network |
-| `detect_communities()` | Walktrap / Louvain / Leiden community detection |
+| `detect_communities()`, `get_community_subgraphs()` | Walktrap / Louvain / Leiden community detection |
 | `compute_psi()`, `compute_cs()` | The two SRT indicators |
 | `term_relevance()`, `top_terms()` | Representative terms per community |
 | `plot_themescope()`, `plot_network()`, `themescope_colours()` | Map, igraph network, shared palette |
@@ -118,8 +255,7 @@ Key options of `themescope()` / `build_cooccurrence_matrix()`: `unit`
 (`"lemma"`/`"token"`), `window` (`"sentence"`/`"document"`), `normalization`
 (`"association"`, `"jaccard"`, `"salton"`, `"inclusion"`, `"equivalence"`,
 `"frequency"`), and `community_algorithm` (`"walktrap"`, `"louvain"`,
-`"leiden"`). On the map, `plot(result, label = "terms")` labels each community
-with its most representative terms (matching colours on the network).
+`"leiden"`).
 
 ---
 

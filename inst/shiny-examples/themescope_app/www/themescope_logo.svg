@@ -15,8 +15,8 @@
   <polygon points="83,393 91,389 91,397" fill="#ffffff" opacity="0.75"/>
   <polygon points="340,95 336,103 344,103" fill="#ffffff" opacity="0.75"/>
   <polygon points="340,691 336,683 344,683" fill="#ffffff" opacity="0.75"/>
-  <line x1="83" y1="393" x2="597" y2="393" stroke="#ffffff" stroke-width="1.5" opacity="0.45"/>
-  <line x1="340" y1="95" x2="340" y2="691" stroke="#ffffff" stroke-width="1.5" opacity="0.45"/>
+  <line x1="83" y1="393" x2="597" y2="393" stroke="#ffffff" stroke-width="2.5" opacity="0.45"/>
+  <line x1="340" y1="95" x2="340" y2="691" stroke="#ffffff" stroke-width="2.5" opacity="0.45"/>
 
   <!-- Q1 TOP-LEFT — TEAL -->
   <line x1="178" y1="238" x2="245" y2="248" stroke="#1D9E75" stroke-width="1.5" opacity="0.85"/>
@@ -89,16 +89,9 @@
   <circle cx="450" cy="568" r="4"   fill="#F5C4B3" opacity="0.7"/>
 
   <!-- ThemeScope label at origin -->
-  <text x="336" y="363" text-anchor="middle" dominant-baseline="central"
+  <text x="334" y="362" text-anchor="middle" dominant-baseline="central"
     font-family="'Helvetica Neue', Arial, sans-serif"
-    font-weight="200" font-size="80" letter-spacing="2"
-    fill="#e8f4fb" opacity="0.97">Theme Scope</text>
-
-<!-- R logo bottom -->
-<circle cx="340" cy="618" r="42" fill="#ffffff" opacity="0.97"/>
-<text x="340" y="619" text-anchor="middle" dominant-baseline="central"
-  font-family="'Helvetica Neue', Arial, sans-serif"
-  font-weight="400" font-size="58"
-  fill="#243b55">R</text>
+    font-weight="300" font-size="70" letter-spacing="2"
+    fill="#ffffff" opacity="0.97">themescopeR</text>
 
 </svg>
