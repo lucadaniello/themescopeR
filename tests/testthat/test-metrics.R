@@ -49,6 +49,39 @@ test_that("term_relevance matches the closed form on a 3-node graph", {
   expect_equal(rel$relevance[rel$term == "c"], 0)
 })
 
+test_that("top_terms ranks by relevance (default), frequency and degree", {
+  obj  <- make_test_network()
+  fake <- structure(
+    list(graph = obj$graph, communities = obj$communities,
+         membership = obj$membership, presence = obj$presence),
+    class = "themescope"
+  )
+
+  # Default is relevance R_t; output carries relevance, frequency and degree.
+  tt <- top_terms(fake, n = 5)
+  expect_true(all(c("community", "rank", "term", "relevance", "frequency",
+                    "degree") %in% names(tt)))
+  expect_lte(max(tt$rank), 5)
+
+  # frequency = term presence a_t, and rows are ordered by it within community.
+  ttf <- top_terms(fake, n = 5, by = "frequency")
+  expect_equal(ttf$frequency, unname(obj$presence[ttf$term]))
+  for (cid in unique(ttf$community)) {
+    v <- ttf$frequency[ttf$community == cid]
+    expect_false(is.unsorted(rev(v)))  # non-increasing within the community
+  }
+
+  # relevance ranking is non-increasing within each community
+  ttr <- top_terms(fake, n = 5, by = "relevance")
+  for (cid in unique(ttr$community)) {
+    v <- ttr$relevance[ttr$community == cid]
+    expect_false(is.unsorted(rev(v)))
+  }
+
+  # invalid criterion is rejected
+  expect_error(top_terms(fake, by = "nonsense"))
+})
+
 test_that("lexicon_coverage reports per-community and overall coverage", {
   obj <- make_test_network()
   fake <- structure(list(graph = obj$graph, communities = obj$communities),

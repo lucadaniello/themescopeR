@@ -36,6 +36,7 @@ themescope(
   x,
   type = c("map", "network"),
   label = c("id", "terms"),
+  label_by = c("relevance", "frequency", "degree"),
   n_label_terms = 3,
   ...
 )
@@ -95,6 +96,10 @@ Defaults to the bundled \link{brysbaert} lexicon. Pass \code{NULL} to skip CS.}
 \item{label}{Map point labels: \code{"id"} (community id, default) or \code{"terms"}
 (the top terms of each community).}
 
+\item{label_by}{Ranking used to pick the terms when \code{label = "terms"}:
+\code{"relevance"} (default, \eqn{R_t}), \code{"frequency"} (term presence) or
+\code{"degree"}. Passed to \code{\link[=top_terms]{top_terms()}}.}
+
 \item{n_label_terms}{Integer. Number of terms per label when \code{label = "terms"}
 (default \code{3}).}
 }
@@ -126,8 +131,9 @@ it is annotated with \pkg{udpipe} via \code{\link[=preprocess_texts]{preprocess_
 
 \item \code{plot(themescope)}: Plot a \code{themescope} object (\code{type = "map"} or
 \code{"network"}). With \code{label = "terms"}, communities on the map are labelled
-with their most representative terms (up to \code{n_label_terms}) instead of the
-community id; communities keep the same colour in both views.
+with their most representative terms (up to \code{n_label_terms}), chosen with
+the \code{label_by} method, instead of the community id; communities keep the
+same colour in both views.
 
 \item \code{as.data.frame(themescope)}: Coerce to a tidy community-level data frame (raw and
 z-scored metrics plus quadrant).

@@ -206,11 +206,21 @@ community in a quadrant (`assign_quadrant()`, `zscore()`).
 
 ```r
 term_relevance(graph, membership, presence)
-top_terms(x, n = 10, by = "relevance")
+top_terms(x, n = 10, by = "relevance")   # or by = "frequency" / "degree"
 ```
 
-Rank the terms inside each community by `"relevance"` (a salience score) or
-`"degree"`, so each theme can be labelled by its most characteristic words.
+Rank the terms inside each community so each theme can be labelled by its most
+characteristic words. `term_relevance()` implements the case-study relevance
+measure
+
+$$R_t(g_i) = \log(1 + a_t)\cdot\frac{s_t^{\text{in}}(g_i)}{s_t^{\text{in}}(g_i) + s_t^{\text{out}}(g_i)},$$
+
+where `a_t` is the term presence, and `s_t^in` / `s_t^out` are the total
+association strength linking `t` to terms inside / outside its own community.
+`top_terms()` ranks by `"relevance"` (the default `R_t`, which downweights
+generic terms shared across clusters), by `"frequency"` (term presence `a_t`
+alone), or by `"degree"`. Relevance is the labelling method used throughout
+ThemeScope; frequency is kept as a simpler alternative.
 
 ### 9. Visualisation — `plot_themescope()` & `plot_network()`
 
@@ -224,7 +234,8 @@ four labelled quadrants; `plot_network()` draws the community-coloured network.
 Both share `themescope_colours()`, so a community keeps the same colour on the
 map and on the network. On a `themescope` object simply call
 `plot(result, type = "map" | "network")`; `plot(result, label = "terms")` labels
-each community with its top terms.
+each community with its top terms (ranked by relevance by default; pass
+`label_by = "frequency"` to label by term frequency instead).
 
 ### 10. Orchestrator & GUI — `themescope()` and `run_themescope()`
 

@@ -115,7 +115,13 @@ build_map_plotly <- function(result, top3, label_terms = FALSE) {
 }
 
 # ---- Helper: top terms as plotly bars (community-coloured) --------------------
-build_topterms_plotly <- function(tt, pal, communities = NULL) {
+# `metric` selects which column drives the bar length / ordering:
+#   "relevance" -> R_t (default), "frequency" -> term presence a_t.
+build_topterms_plotly <- function(tt, pal, communities = NULL, metric = "relevance") {
+  value_col   <- if (identical(metric, "frequency")) "frequency" else "relevance"
+  value_title <- if (identical(metric, "frequency")) "Frequency (a_t)" else "Relevance (R_t)"
+  hover_fmt   <- if (identical(metric, "frequency")) "%{x:.0f}" else "%{x:.3f}"
+
   tt <- tt[!is.na(tt$term), , drop = FALSE]
   if (!is.null(communities) && length(communities) > 0) {
     tt <- tt[tt$community %in% communities, , drop = FALSE]
@@ -128,19 +134,20 @@ build_topterms_plotly <- function(tt, pal, communities = NULL) {
 
   plots <- lapply(comms, function(cid) {
     sub <- tt[tt$community == cid, , drop = FALSE]
-    sub <- sub[order(sub$relevance), , drop = FALSE]
-    plot_ly(sub, x = ~relevance, y = ~reorder(term, relevance),
+    sub$value <- sub[[value_col]]
+    sub <- sub[order(sub$value), , drop = FALSE]
+    plot_ly(sub, x = ~value, y = ~reorder(term, value),
             type = "bar", orientation = "h",
             marker = list(color = pal[[cid]], opacity = 0.95,
                           line = list(color = "#5b6770", width = 0.5)),
-            hovertemplate = paste0("<b>%{y}</b><br>Relevance: %{x:.3f}",
+            hovertemplate = paste0("<b>%{y}</b><br>", value_title, ": ", hover_fmt,
                                    "<br>Community: ", cid, "<extra></extra>"),
             showlegend = FALSE) |>
       layout(
         annotations = list(list(text = paste0("<b>", cid, "</b>"),
                                 x = 0.5, y = 1.04, xref = "paper", yref = "paper",
                                 showarrow = FALSE, font = list(size = 12))),
-        xaxis = list(title = "Relevance", showgrid = TRUE, gridcolor = "#eeeeee"),
+        xaxis = list(title = value_title, showgrid = TRUE, gridcolor = "#eeeeee"),
         yaxis = list(title = "", automargin = TRUE))
   })
 
@@ -285,7 +292,18 @@ ui <- page_sidebar(
           "input.community_algorithm !== 'walktrap'",
           numericInput("resolution", "Resolution", value = 1, min = 0.1, max = 4, step = 0.1)),
         numericInput("min_community_size", "Min community size", value = 10, min = 2, max = 50),
-        numericInput("seed", "Random seed", value = 1, min = 0, step = 1)
+        numericInput("seed", "Random seed", value = 1, min = 0, step = 1),
+        radioButtons(
+          "label_by", "Label clusters by",
+          choiceNames = list(
+            HTML("Relevance <i>R<sub>t</sub></i>"),
+            HTML("Frequency <i>a<sub>t</sub></i>")
+          ),
+          choiceValues = c("relevance", "frequency"),
+          selected = "relevance", inline = TRUE),
+        helpText(
+          HTML("Relevance <i>R<sub>t</sub></i> (case-study default) favours terms that are frequent <em>and</em> internally embedded; frequency uses term presence <i>a<sub>t</sub></i> alone."),
+          class = "small text-muted")
       ),
       accordion_panel(
         "Concreteness", icon = icon("cube"),
@@ -376,7 +394,7 @@ ui <- page_sidebar(
       card(full_screen = TRUE,
         card_header(
           div(class = "d-flex flex-wrap justify-content-between align-items-center gap-2",
-              span("Top terms by community (relevance R", tags$sub("t"), ")"),
+              span("Top terms by community — ", textOutput("tt_metric_label", inline = TRUE)),
               div(class = "d-flex align-items-center gap-2",
                   selectizeInput("tt_comms", label = NULL, choices = NULL, multiple = TRUE,
                                  width = "320px",
@@ -557,7 +575,12 @@ server <- function(input, output, session) {
   })
 
   # ---- Derived data ----
-  top3 <- reactive({ req(result_obj()); top_terms(result_obj(), n = 3, by = "relevance") })
+  # Cluster-labelling method (relevance R_t by default; frequency a_t optional).
+  label_by <- reactive({
+    lb <- input$label_by
+    if (is.null(lb) || !nzchar(lb)) "relevance" else lb
+  })
+  top3 <- reactive({ req(result_obj()); top_terms(result_obj(), n = 3, by = label_by()) })
 
   communities_df <- reactive({
     res <- result_obj(); req(res)
@@ -661,6 +684,9 @@ server <- function(input, output, session) {
   )
 
   # ---- Top terms ----
+  output$tt_metric_label <- renderText({
+    if (identical(label_by(), "frequency")) "frequency (a_t)" else "relevance (R_t)"
+  })
   output$topterms_ui <- renderUI({
     if (is.null(result_obj())) return(.empty_state())
     .spinner(plotlyOutput("topterms_plot", height = "620px"))
@@ -669,9 +695,9 @@ server <- function(input, output, session) {
     res <- result_obj(); req(res)
     n  <- input$top_n_terms
     if (is.null(n) || is.na(n)) n <- 10
-    tt <- top_terms(res, n = max(3, min(30, n)), by = "relevance")
+    tt <- top_terms(res, n = max(3, min(30, n)), by = label_by())
     build_topterms_plotly(tt, pal = .community_palette(res),
-                          communities = input$tt_comms)
+                          communities = input$tt_comms, metric = label_by())
   })
   output$dl_terms <- downloadHandler(
     filename = function() "themescope_top_terms.csv",
@@ -679,7 +705,8 @@ server <- function(input, output, session) {
       res <- result_obj(); req(res)
       n <- input$top_n_terms
       if (is.null(n) || is.na(n)) n <- 10
-      utils::write.csv(top_terms(res, n = max(3, min(30, n))), file, row.names = FALSE)
+      utils::write.csv(top_terms(res, n = max(3, min(30, n)), by = label_by()),
+                       file, row.names = FALSE)
     }
   )
 
@@ -740,10 +767,21 @@ server <- function(input, output, session) {
       "  min_community_size   = ", p$min_community_size, ",\n",
       "  seed                 = ", if (is.null(p$seed)) "NULL" else p$seed, "\n",
       ")\n\n",
-      'plot(result, type = "map", label = "terms")  # strategic diagram\n',
-      'plot(result, type = "network")               # community-coloured network\n',
-      "top_terms(result, n = 10)                    # representative terms\n",
-      "as.data.frame(result)                        # community metrics table"
+      if (identical(label_by(), "frequency")) {
+        paste0(
+          'plot(result, type = "map", label = "terms", label_by = "frequency")  # strategic diagram\n',
+          'plot(result, type = "network")                                       # community-coloured network\n',
+          'top_terms(result, n = 10, by = "frequency")                          # representative terms\n',
+          "as.data.frame(result)                                                # community metrics table"
+        )
+      } else {
+        paste0(
+          'plot(result, type = "map", label = "terms")  # strategic diagram\n',
+          'plot(result, type = "network")               # community-coloured network\n',
+          "top_terms(result, n = 10)                    # representative terms (relevance R_t)\n",
+          "as.data.frame(result)                        # community metrics table"
+        )
+      }
     )
   })
 }

@@ -285,36 +285,62 @@ term_relevance <- function(graph, membership, presence) {
 
 #' Top terms per community
 #'
-#' Returns the highest-ranked terms of each community, ranked either by the
-#' ThemeScope relevance measure [term_relevance()] (default) or by network
-#' degree.
+#' Returns the highest-ranked terms of each community, used to label and
+#' interpret the thematic clusters. Terms can be ranked by three criteria:
+#' \describe{
+#'   \item{`"relevance"` (default)}{the ThemeScope case-study relevance measure
+#'     \eqn{R_t(g_i)} ([term_relevance()]), which combines lexical salience with
+#'     a term's internal-versus-external connectivity. This is the labelling
+#'     method described in the ThemeScope case study: it downweights generic,
+#'     high-frequency terms that co-occur across several clusters and favours
+#'     terms that are both frequent and structurally embedded in their own
+#'     community.}
+#'   \item{`"frequency"`}{the term presence \eqn{a_t} (the number of sentences,
+#'     or documents, in which the term occurs) — the salience component of
+#'     \eqn{R_t} on its own, i.e. plain frequency-based labelling.}
+#'   \item{`"degree"`}{the network degree of the term (number of co-occurrence
+#'     links).}
+#' }
 #'
 #' @param x A `themescope` object (from [themescope()]).
 #' @param n Integer. Number of terms to return per community (default `10`).
-#' @param by Ranking criterion: `"relevance"` (default) or `"degree"`.
+#' @param by Ranking criterion: `"relevance"` (default, \eqn{R_t}),
+#'   `"frequency"` (term presence \eqn{a_t}) or `"degree"`.
 #'
 #' @return A data frame with columns `community`, `rank`, `term`, `relevance`,
-#'   `degree`.
+#'   `frequency` (term presence \eqn{a_t}) and `degree`, ordered by community and
+#'   then by the chosen ranking criterion (decreasing).
+#'
+#' @seealso [term_relevance()] for the relevance measure \eqn{R_t}.
 #'
 #' @examples
 #' \dontrun{
-#' top_terms(result, n = 10)
+#' top_terms(result, n = 10)                  # by relevance R_t (default)
+#' top_terms(result, n = 10, by = "frequency") # by term frequency a_t
 #' }
 #'
 #' @export
-top_terms <- function(x, n = 10, by = c("relevance", "degree")) {
+top_terms <- function(x, n = 10, by = c("relevance", "frequency", "degree")) {
   by <- match.arg(by)
   if (!inherits(x, "themescope")) {
     cli::cli_abort("{.arg x} must be a {.cls themescope} object.")
   }
 
   rel <- term_relevance(x$graph, x$membership, x$presence)
-  ord_col <- if (by == "relevance") "relevance" else "degree"
+  # "frequency" ranks by term presence a_t (the salience term of R_t); the
+  # data frame column carrying a_t is `presence`.
+  ord_col <- switch(by,
+    relevance = "relevance",
+    frequency = "presence",
+    degree    = "degree"
+  )
 
   comms <- names(x$communities)
   rows <- lapply(comms, function(cid) {
     sub <- rel[rel$community == cid, , drop = FALSE]
-    sub <- sub[order(-sub[[ord_col]]), , drop = FALSE]
+    # Primary key = chosen criterion; ties broken by relevance then term name
+    # for a deterministic order.
+    sub <- sub[order(-sub[[ord_col]], -sub$relevance, sub$term), , drop = FALSE]
     sub <- utils::head(sub, n)
     if (nrow(sub) == 0) return(NULL)
     data.frame(
@@ -322,6 +348,7 @@ top_terms <- function(x, n = 10, by = c("relevance", "degree")) {
       rank      = seq_len(nrow(sub)),
       term      = sub$term,
       relevance = sub$relevance,
+      frequency = sub$presence,
       degree    = sub$degree,
       stringsAsFactors = FALSE
     )

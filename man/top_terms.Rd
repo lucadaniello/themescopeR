@@ -4,27 +4,46 @@
 \alias{top_terms}
 \title{Top terms per community}
 \usage{
-top_terms(x, n = 10, by = c("relevance", "degree"))
+top_terms(x, n = 10, by = c("relevance", "frequency", "degree"))
 }
 \arguments{
 \item{x}{A \code{themescope} object (from \code{\link[=themescope]{themescope()}}).}
 
 \item{n}{Integer. Number of terms to return per community (default \code{10}).}
 
-\item{by}{Ranking criterion: \code{"relevance"} (default) or \code{"degree"}.}
+\item{by}{Ranking criterion: \code{"relevance"} (default, \eqn{R_t}),
+\code{"frequency"} (term presence \eqn{a_t}) or \code{"degree"}.}
 }
 \value{
 A data frame with columns \code{community}, \code{rank}, \code{term}, \code{relevance},
-\code{degree}.
+\code{frequency} (term presence \eqn{a_t}) and \code{degree}, ordered by community and
+then by the chosen ranking criterion (decreasing).
 }
 \description{
-Returns the highest-ranked terms of each community, ranked either by the
-ThemeScope relevance measure \code{\link[=term_relevance]{term_relevance()}} (default) or by network
-degree.
+Returns the highest-ranked terms of each community, used to label and
+interpret the thematic clusters. Terms can be ranked by three criteria:
+\describe{
+\item{\code{"relevance"} (default)}{the ThemeScope case-study relevance measure
+\eqn{R_t(g_i)} (\code{\link[=term_relevance]{term_relevance()}}), which combines lexical salience with
+a term's internal-versus-external connectivity. This is the labelling
+method described in the ThemeScope case study: it downweights generic,
+high-frequency terms that co-occur across several clusters and favours
+terms that are both frequent and structurally embedded in their own
+community.}
+\item{\code{"frequency"}}{the term presence \eqn{a_t} (the number of sentences,
+or documents, in which the term occurs) — the salience component of
+\eqn{R_t} on its own, i.e. plain frequency-based labelling.}
+\item{\code{"degree"}}{the network degree of the term (number of co-occurrence
+links).}
+}
 }
 \examples{
 \dontrun{
-top_terms(result, n = 10)
+top_terms(result, n = 10)                  # by relevance R_t (default)
+top_terms(result, n = 10, by = "frequency") # by term frequency a_t
 }
 
+}
+\seealso{
+\code{\link[=term_relevance]{term_relevance()}} for the relevance measure \eqn{R_t}.
 }

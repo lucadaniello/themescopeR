@@ -265,18 +265,25 @@ summary.themescope <- function(object, ...) {
 
 #' @describeIn themescope Plot a `themescope` object (`type = "map"` or
 #'   `"network"`). With `label = "terms"`, communities on the map are labelled
-#'   with their most representative terms (up to `n_label_terms`) instead of the
-#'   community id; communities keep the same colour in both views.
+#'   with their most representative terms (up to `n_label_terms`), chosen with
+#'   the `label_by` method, instead of the community id; communities keep the
+#'   same colour in both views.
 #' @param type Character. `"map"` (default) or `"network"`.
 #' @param label Map point labels: `"id"` (community id, default) or `"terms"`
 #'   (the top terms of each community).
+#' @param label_by Ranking used to pick the terms when `label = "terms"`:
+#'   `"relevance"` (default, \eqn{R_t}), `"frequency"` (term presence) or
+#'   `"degree"`. Passed to [top_terms()].
 #' @param n_label_terms Integer. Number of terms per label when `label = "terms"`
 #'   (default `3`).
 #' @export
 plot.themescope <- function(x, type = c("map", "network"),
-                            label = c("id", "terms"), n_label_terms = 3, ...) {
-  type  <- match.arg(type)
-  label <- match.arg(label)
+                            label = c("id", "terms"),
+                            label_by = c("relevance", "frequency", "degree"),
+                            n_label_terms = 3, ...) {
+  type     <- match.arg(type)
+  label    <- match.arg(label)
+  label_by <- match.arg(label_by)
 
   comm_names <- names(x$communities)
   palette <- .themescope_palette(length(comm_names))
@@ -284,7 +291,7 @@ plot.themescope <- function(x, type = c("map", "network"),
   if (type == "map") {
     community_labels <- NULL
     if (label == "terms") {
-      tt <- top_terms(x, n = n_label_terms, by = "relevance")
+      tt <- top_terms(x, n = n_label_terms, by = label_by)
       community_labels <- vapply(comm_names, function(cid) {
         paste(tt$term[tt$community == cid], collapse = ", ")
       }, character(1))

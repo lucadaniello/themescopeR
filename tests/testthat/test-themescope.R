@@ -38,6 +38,10 @@ test_that("plot.themescope builds a ggplot map (id and term labels)", {
                     min_community_size = 3, seed = 1, verbose = FALSE)
   expect_s3_class(plot(res, type = "map"), "ggplot")
   expect_s3_class(plot(res, type = "map", label = "terms", n_label_terms = 2), "ggplot")
+  expect_s3_class(
+    plot(res, type = "map", label = "terms", label_by = "frequency", n_label_terms = 2),
+    "ggplot"
+  )
 })
 
 test_that("themescope vocab is a build_vocab data frame and stores params", {
