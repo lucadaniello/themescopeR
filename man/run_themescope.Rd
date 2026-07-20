@@ -4,11 +4,18 @@
 \alias{run_themescope}
 \title{Launch the themescopeR Shiny application}
 \usage{
-run_themescope(display_mode = "normal", ...)
+run_themescope(display_mode = "normal", max_upload_size_mb = NULL, ...)
 }
 \arguments{
 \item{display_mode}{Passed to \code{\link[shiny:runApp]{shiny::runApp()}} (\code{"normal"} by default;
 \code{"showcase"} displays the app code alongside it).}
+
+\item{max_upload_size_mb}{Optional numeric. Baseline maximum file-upload size
+(in megabytes) for the GUI. Shiny's own default is only 5 MB, far too small
+for typical ThemeScope collections, so the app already raises this to 50 MB.
+Set a larger value here to lift the baseline further from R (e.g. \code{2048} for
+2 GB). Users can also raise it interactively via the app's "large-file mode"
+toggle, which first warns about the memory implications.}
 
 \item{...}{Further arguments passed to \code{\link[shiny:runApp]{shiny::runApp()}} (e.g. \code{port},
 \code{launch.browser}).}

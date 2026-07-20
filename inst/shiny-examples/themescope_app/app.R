@@ -19,6 +19,39 @@ library(plotly)
 library(visNetwork)
 library(shinycssloaders)
 
+# ---- Upload size limit -------------------------------------------------------
+# Shiny's default upload cap is 5 MB, far too small for ThemeScope collections
+# (tens of MB to several GB). We raise a comfortable baseline here so typical
+# large files load without friction; the "large-file mode" toggle in the Data
+# panel lets users raise it further, after an explicit warning about the memory
+# implications. run_themescope(max_upload_size_mb = ...) can override the
+# baseline from R. Shiny re-reads this option on every upload, so bumping it at
+# runtime (before the file is picked) takes effect immediately.
+.baseline_upload_mb <- 50L
+if (is.null(getOption("shiny.maxRequestSize")) ||
+    getOption("shiny.maxRequestSize") < .baseline_upload_mb * 1024^2) {
+  options(shiny.maxRequestSize = .baseline_upload_mb * 1024^2)
+}
+
+# ---- Citation ----------------------------------------------------------------
+# Using themescopeR / ThemeScope requires citing the paper below.
+.cite_doi_url <- "https://doi.org/10.1177/01655515261454276"
+.cite_apa <- paste0(
+  "Misuraca, M., Spano, M., & D’Aniello, L. (2026). ThemeScope: A ",
+  "quantitative thematic analysis for depicting social representations in ",
+  "digital arenas. Journal of Information Science. ", .cite_doi_url)
+.cite_bibtex <- paste(
+  "@article{misuraca2026themescope,",
+  "  author  = {Misuraca, Michelangelo and Spano, Maria and D'Aniello, Luca},",
+  "  title   = {ThemeScope: A quantitative thematic analysis for depicting social representations in digital arenas},",
+  "  journal = {Journal of Information Science},",
+  "  year    = {2026},",
+  "  pages   = {01655515261454276},",
+  "  doi     = {10.1177/01655515261454276},",
+  "  url     = {https://doi.org/10.1177/01655515261454276}",
+  "}",
+  sep = "\n")
+
 # ---- Demo dataset (bundled raw climate sample) -------------------------------
 .demo_path  <- system.file("extdata", "sample_collection.csv", package = "themescopeR")
 .demo_coll  <- if (nzchar(.demo_path)) read_collection(.demo_path) else NULL
@@ -159,7 +192,14 @@ build_topterms_plotly <- function(tt, pal, communities = NULL, metric = "relevan
 }
 
 # ---- Helper: network as visNetwork --------------------------------------------
-build_network_visnetwork <- function(result, hide_unclassified = FALSE) {
+# `repulsion` (0–1) spreads communities apart: it scales the force-atlas
+# gravitational constant (more negative = stronger repulsion) and the spring
+# length, so higher values push clusters further from each other.
+build_network_visnetwork <- function(result, hide_unclassified = FALSE,
+                                      repulsion = 0.3) {
+  repulsion <- max(0, min(1, if (is.null(repulsion) || is.na(repulsion)) 0.3 else repulsion))
+  grav_const  <- -50 - repulsion * 550   # -50 (rep=0) .. -600 (rep=1)
+  spring_len  <- 100 + repulsion * 300   # 100 .. 400
   g    <- result$graph
   memb <- result$membership
   deg  <- igraph::degree(g)
@@ -196,7 +236,8 @@ build_network_visnetwork <- function(result, hide_unclassified = FALSE) {
                selectedBy = list(variable = "group", main = "Filter by community"),
                nodesIdSelection = list(enabled = TRUE, main = "Find a term")) |>
     visPhysics(solver = "forceAtlas2Based",
-               forceAtlas2Based = list(gravitationalConstant = -300, springLength = 200),
+               forceAtlas2Based = list(gravitationalConstant = grav_const,
+                                       springLength = spring_len),
                stabilization = list(enabled = TRUE, iterations = 300, fit = TRUE)) |>
     visNodes(shape = "dot", scaling = list(min = 8, max = 40),
              font = list(size = 16)) |>
@@ -221,32 +262,80 @@ ui <- page_sidebar(
     tags$span("themescopeR", style = "font-weight:600; letter-spacing:0.04em;"),
     tags$span("mapping social representations in digital discourse",
               class = "d-none d-lg-inline", style = "font-size:0.8rem; opacity:0.75;")),
-  theme = bs_theme(bootswatch = "flatly", primary = "#1D9E75", secondary = "#243b55"),
+  theme = bs_theme(
+    version    = 5,
+    bootswatch = "flatly",
+    # ---- Logo-harmonized light palette (warm, on-brand, high contrast) ----
+    primary    = "#1D9E75",  # logo green
+    secondary  = "#D85A30",  # logo terracotta
+    success    = "#1D9E75",
+    warning    = "#EF9F27",  # logo amber (accents)
+    info       = "#7F77DD",  # logo purple
+    bg         = "#FBF8F4",  # warm off-white page
+    fg         = "#3A3A38",  # warm dark grey text
+    "body-color"    = "#4A4A48",
+    "border-color"  = "#ECE6DE",
+    "card-bg"       = "#FFFFFF",
+    "link-color"    = "#0F6E56"
+  ),
   fillable = FALSE,
 
-  # ---- Sidebar: data + the full pipeline parameters, grouped by step --------
+  # ---- Sidebar: import first; the pipeline reveals once data is loaded ------
   sidebar = sidebar(
     width = 340,
+
+    # ---- Import data (always visible) ----
+    div(
+      class = "d-flex align-items-center justify-content-between mb-1",
+      tags$h6("Import data", class = "text-uppercase small fw-bold mb-0",
+              style = "letter-spacing:0.06em; color:#3A3A38;"),
+      actionLink("import_info", icon("circle-info"),
+                 title = "How importing works", class = "text-secondary")
+    ),
+
+    # Before import: size hint + browse + import + demo
+    conditionalPanel(
+      condition = "!output.has_data",
+      numericInput("expected_size_mb", "Expected file size (MB)",
+                   value = .baseline_upload_mb, min = 1, step = 10),
+      helpText(class = "small text-muted mb-2",
+               "Set this ", tags$em("before browsing"),
+               " if your file is larger than the default. See the ",
+               icon("circle-info"), " for details."),
+      fileInput("file_upload", label = NULL,
+                accept = c(".csv", ".tsv", ".txt", ".xlsx", ".xls",
+                           ".RData", ".rda", ".zip"),
+                placeholder = "Raw documents or annotated words",
+                buttonLabel = "Browse"),
+      helpText(class = "small",
+               "Raw documents (", tags$code("doc_id"), ", ", tags$code("text"),
+               " in .csv/.tsv/.xlsx/.RData/.txt/.zip) ", tags$em("or"),
+               " an annotated words file (", tags$code("doc_id"), ", ",
+               tags$code("sentence_id"), ", ", tags$code("lemma"), "/",
+               tags$code("token"), ", ", tags$code("upos"), ")."),
+      actionButton("do_import", tagList(icon("file-import"), " Import"),
+                   class = "btn-primary w-100"),
+      tags$hr(class = "my-2"),
+      actionButton("load_demo",
+                   tagList(icon("seedling"), " Load demo — Reddit climate"),
+                   class = "btn-outline-primary btn-sm w-100")
+    ),
+
+    # After import: badge + reset (starts the app over)
+    conditionalPanel(
+      condition = "output.has_data",
+      uiOutput("data_badge"),
+      actionButton("reset_app", tagList(icon("rotate-left"), " Reset"),
+                   class = "btn-outline-danger btn-sm w-100 mt-2")
+    ),
+
+    tags$hr(class = "my-2"),
+
+    # ---- Pipeline parameters: only after data is imported ----
+    conditionalPanel(
+      condition = "output.has_data",
     accordion(
-      multiple = FALSE, open = "Data",
-      accordion_panel(
-        "Data", icon = icon("database"),
-        fileInput("file_upload", label = NULL,
-                  accept = c(".csv", ".tsv", ".txt", ".xlsx", ".xls",
-                             ".RData", ".rda", ".zip"),
-                  placeholder = "Raw documents or annotated words",
-                  buttonLabel = "Browse"),
-        helpText(class = "small",
-                 "Raw documents (", tags$code("doc_id"), ", ", tags$code("text"),
-                 " in .csv/.tsv/.xlsx/.RData/.txt/.zip) ", tags$em("or"),
-                 " an annotated words file (", tags$code("doc_id"), ", ",
-                 tags$code("sentence_id"), ", ", tags$code("lemma"), "/",
-                 tags$code("token"), ", ", tags$code("upos"), ")."),
-        actionButton("load_demo",
-                     tagList(icon("seedling"), " Load demo — Reddit climate"),
-                     class = "btn-outline-primary btn-sm w-100"),
-        uiOutput("data_badge")
-      ),
+      multiple = FALSE, open = "Preprocessing",
       accordion_panel(
         "Preprocessing", icon = icon("language"),
         selectInput("language", "Annotation language (udpipe)",
@@ -317,6 +406,7 @@ ui <- page_sidebar(
     actionButton("run_analysis", tagList(icon("play"), " Run analysis"),
                  class = "btn-primary w-100 mt-1"),
     uiOutput("analysis_status_badge")
+    )  # end conditionalPanel (pipeline params)
   ),
 
   # ---- Headline value boxes (appear after the first run) --------------------
@@ -332,7 +422,7 @@ ui <- page_sidebar(
         div(class = "d-flex align-items-center gap-3 mb-3",
             tags$img(src = "themescope_logo.svg", height = "110px",
                      alt = "themescopeR logo"),
-            div(tags$h3("themescopeR", class = "mb-0", style = "color:#243b55;"),
+            div(tags$h3("themescopeR", class = "mb-0", style = "color:#3A3A38;"),
                 tags$p(class = "text-muted mb-0",
                        "Map social representations in digital discourse from raw text."))),
         tags$ol(
@@ -362,6 +452,35 @@ ui <- page_sidebar(
                "console results exactly (see the Reproduce tab). ",
                "Concreteness norms: Brysbaert et al. (2014). ",
                "Updated udpipe models: tall.language.models (M. Aria).")
+        ,
+        tags$hr(),
+        div(class = "card border-0", style = "background:#1D9E7514;",
+          div(class = "card-body",
+            tags$h5(tagList(icon("quote-right"), " How to cite"), class = "mb-2",
+                    style = "color:#3A3A38;"),
+            tags$p(class = "mb-2",
+                   "Using themescopeR / ThemeScope in your work ", tags$b("requires"),
+                   " citing the paper below. Please do not use it without attribution."),
+            radioButtons("cite_format", NULL,
+                         choices = c("APA" = "apa", "BibTeX" = "bibtex"),
+                         selected = "apa", inline = TRUE),
+            uiOutput("citation_box_ui"),
+            div(class = "d-flex gap-2 mt-2",
+              tags$button(
+                id = "copy_citation", type = "button", class = "btn btn-sm btn-primary",
+                onclick = paste0(
+                  "navigator.clipboard.writeText(",
+                  "document.getElementById('citation_text').innerText).then(function(){",
+                  "var b=document.getElementById('copy_citation');",
+                  "var t=b.innerHTML;b.innerHTML='Copied!';",
+                  "setTimeout(function(){b.innerHTML=t;},1500);});"),
+                tagList(icon("copy"), " Copy")),
+              tags$a(href = .cite_doi_url, target = "_blank",
+                     class = "btn btn-sm btn-outline-secondary",
+                     tagList(icon("up-right-from-square"), " Read the paper"))
+            )
+          )
+        )
       )
     ),
 
@@ -408,10 +527,14 @@ ui <- page_sidebar(
     nav_panel(
       value = "network", title = tagList(icon("circle-nodes"), " Network"),
       card(full_screen = TRUE,
-        card_header(class = "d-flex justify-content-between align-items-center",
+        card_header(class = "d-flex flex-wrap justify-content-between align-items-center gap-3",
           span("Semantic co-occurrence network"),
-          div(style = "min-width:180px;",
-              input_switch("net_hide_unclassified", "Only classified", value = FALSE))),
+          div(class = "d-flex align-items-center gap-3",
+              div(style = "min-width:200px;",
+                  sliderInput("net_repulsion", "Repulsion", min = 0, max = 1,
+                              value = 0.3, step = 0.05, width = "200px")),
+              div(style = "min-width:150px;",
+                  input_switch("net_hide_unclassified", "Only classified", value = FALSE)))),
         card_body(uiOutput("network_ui")))
     ),
 
@@ -434,6 +557,53 @@ server <- function(input, output, session) {
   result_obj  <- reactiveVal(NULL)
   data_source <- reactiveVal(NULL)
 
+  # ---- Reveal flag: drives the sidebar (Import vs Reset, pipeline controls) ----
+  output$has_data <- reactive({
+    !is.null(collection()) || !is.null(words_data())
+  })
+  outputOptions(output, "has_data", suspendWhenHidden = FALSE)
+
+  # ---- Expected file size sets Shiny's upload cap ----
+  # Shiny reads this option at upload time, so it must be set before the user
+  # browses (hence the numeric input sits above the Browse button).
+  observeEvent(input$expected_size_mb, {
+    mb <- suppressWarnings(as.numeric(input$expected_size_mb))
+    if (is.na(mb) || mb < 1) mb <- .baseline_upload_mb
+    options(shiny.maxRequestSize = mb * 1024^2)
+  }, ignoreInit = FALSE)
+
+  # ---- Info modal: how the import process works ----
+  observeEvent(input$import_info, {
+    showModal(modalDialog(
+      title = tagList(icon("circle-info"), " How importing works"),
+      easyClose = TRUE,
+      tags$ol(
+        tags$li(tags$b("Set the expected file size"), " (MB) if your file is ",
+                "larger than ", .baseline_upload_mb, " MB — this raises the upload ",
+                "limit before the file is transferred."),
+        tags$li(tags$b("Browse"), " and pick one file: raw documents ",
+                "(.csv/.tsv/.xlsx/.RData/.txt, or a .zip of many) with ",
+                tags$code("doc_id"), " + ", tags$code("text"), ", or an already ",
+                "annotated words file (", tags$code("doc_id"), ", ",
+                tags$code("sentence_id"), ", ", tags$code("lemma"), "/",
+                tags$code("token"), ", ", tags$code("upos"), ")."),
+        tags$li(tags$b("Click Import"), " to read the file into memory. Only ",
+                "then do the preprocessing and analysis controls appear.")
+      ),
+      tags$p(class = "mb-1", tags$b("What to expect for large files:")),
+      tags$ul(
+        tags$li("The whole file is loaded into RAM; keep roughly ",
+                tags$b("2–5× the file size"), " free, or R may slow down / crash."),
+        tags$li("Very large uploads take time to transfer through the browser."),
+        tags$li("udpipe annotation of big collections can take minutes to hours.")
+      ),
+      tags$p(class = "small text-muted mb-0",
+             "Use ", tags$b("Reset"), " (top of the sidebar, after import) to ",
+             "clear everything and start over."),
+      footer = modalButton("Got it")
+    ))
+  })
+
   # ---- Demo ----
   observeEvent(input$load_demo, {
     if (is.null(.demo_coll)) {
@@ -446,9 +616,12 @@ server <- function(input, output, session) {
     nav_select("main_tabs", "data")
   })
 
-  # ---- Upload (raw documents OR annotated words) ----
-  observeEvent(input$file_upload, {
-    req(input$file_upload)
+  # ---- Import (raw documents OR annotated words), triggered by the button ----
+  observeEvent(input$do_import, {
+    if (is.null(input$file_upload)) {
+      showNotification("Choose a file with Browse first, then click Import.",
+                       type = "warning"); return()
+    }
     tryCatch({
       path <- input$file_upload$datapath
       coll <- tryCatch(read_collection(path), error = function(e) NULL)
@@ -471,6 +644,32 @@ server <- function(input, output, session) {
       showNotification(paste("Error reading file:", conditionMessage(e)),
                        type = "error", duration = 8)
     })
+  })
+
+  # ---- Reset the whole app (with confirmation) ----
+  observeEvent(input$reset_app, {
+    showModal(modalDialog(
+      title = tagList(icon("triangle-exclamation"), " Reset the app?"),
+      "This clears the imported data and all results, and starts over from scratch.",
+      easyClose = TRUE,
+      footer = tagList(
+        modalButton("Cancel"),
+        actionButton("confirm_reset", "Reset", class = "btn-danger")
+      )
+    ))
+  })
+  observeEvent(input$confirm_reset, {
+    removeModal()
+    session$reload()
+  })
+
+  # ---- Citation (APA default, switchable to BibTeX; copied by the button) ----
+  output$citation_box_ui <- renderUI({
+    txt <- if (identical(input$cite_format, "bibtex")) .cite_bibtex else .cite_apa
+    tags$pre(id = "citation_text", class = "p-3 rounded mb-0",
+             style = paste0("background:#FFFFFF; border:1px solid #ECE6DE; ",
+                            "white-space:pre-wrap; font-size:0.85rem;"),
+             txt)
   })
 
   output$data_badge <- renderUI({
@@ -717,8 +916,10 @@ server <- function(input, output, session) {
   })
   output$network_plot <- renderVisNetwork({
     req(result_obj())
+    rep_val <- if (is.null(input$net_repulsion)) 0.3 else input$net_repulsion
     build_network_visnetwork(result_obj(),
-                             hide_unclassified = isTRUE(input$net_hide_unclassified))
+                             hide_unclassified = isTRUE(input$net_hide_unclassified),
+                             repulsion = rep_val)
   })
 
   # ---- Reproduce: the exact console equivalent of the current run ----

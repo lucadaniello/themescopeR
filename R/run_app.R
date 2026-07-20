@@ -7,6 +7,12 @@
 #'
 #' @param display_mode Passed to [shiny::runApp()] (`"normal"` by default;
 #'   `"showcase"` displays the app code alongside it).
+#' @param max_upload_size_mb Optional numeric. Baseline maximum file-upload size
+#'   (in megabytes) for the GUI. Shiny's own default is only 5 MB, far too small
+#'   for typical ThemeScope collections, so the app already raises this to 50 MB.
+#'   Set a larger value here to lift the baseline further from R (e.g. `2048` for
+#'   2 GB). Users can also raise it interactively via the app's "large-file mode"
+#'   toggle, which first warns about the memory implications.
 #' @param ... Further arguments passed to [shiny::runApp()] (e.g. `port`,
 #'   `launch.browser`).
 #'
@@ -25,7 +31,15 @@
 #' }
 #'
 #' @export
-run_themescope <- function(display_mode = "normal", ...) {
+run_themescope <- function(display_mode = "normal", max_upload_size_mb = NULL, ...) {
+  if (!is.null(max_upload_size_mb)) {
+    if (!is.numeric(max_upload_size_mb) || length(max_upload_size_mb) != 1 ||
+        is.na(max_upload_size_mb) || max_upload_size_mb <= 0) {
+      cli::cli_abort("{.arg max_upload_size_mb} must be a single positive number (megabytes).")
+    }
+    options(shiny.maxRequestSize = max_upload_size_mb * 1024^2)
+  }
+
   app_dir <- system.file("shiny-examples", "themescope_app", package = "themescopeR")
   if (app_dir == "") {
     cli::cli_abort(c(

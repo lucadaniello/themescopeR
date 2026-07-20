@@ -11,6 +11,7 @@ plot_network(
   layout = "fr",
   top_n_labels = 8,
   edge_color = "grey85",
+  repulsion = 0,
   seed = NULL,
   ...
 )
@@ -30,6 +31,11 @@ plot_network(
 (default \code{8}).}
 
 \item{edge_color}{Colour of the edges (default light grey).}
+
+\item{repulsion}{Numeric in \verb{[0, 1]} (default \code{0}). Pushes communities apart:
+after the base layout is computed, each community's nodes are displaced
+outward from the global centre in proportion to \code{repulsion}, so higher
+values separate clusters more (\code{0} leaves the layout unchanged).}
 
 \item{seed}{Optional integer seed for a reproducible layout.}
 

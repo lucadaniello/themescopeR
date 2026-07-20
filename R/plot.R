@@ -170,6 +170,10 @@ plot_themescope <- function(psi,
 #' @param top_n_labels Integer. Highest-degree nodes per community to label
 #'   (default `8`).
 #' @param edge_color Colour of the edges (default light grey).
+#' @param repulsion Numeric in `[0, 1]` (default `0`). Pushes communities apart:
+#'   after the base layout is computed, each community's nodes are displaced
+#'   outward from the global centre in proportion to `repulsion`, so higher
+#'   values separate clusters more (`0` leaves the layout unchanged).
 #' @param seed Optional integer seed for a reproducible layout.
 #' @param ... Passed to [igraph::plot.igraph()].
 #'
@@ -187,6 +191,7 @@ plot_network <- function(graph,
                          layout       = "fr",
                          top_n_labels = 8,
                          edge_color   = "grey85",
+                         repulsion    = 0,
                          seed         = NULL,
                          ...) {
   if (!igraph::is_igraph(graph)) {
@@ -219,6 +224,20 @@ plot_network <- function(graph,
   )
   if (!is.null(seed)) set.seed(as.integer(seed))
   lyt <- layout_fn(graph)
+
+  # Repulsion: displace each community's nodes outward from the global centre so
+  # clusters separate (0 = no change). Relative positions change, so igraph's
+  # rescale-to-fit still shows the wider spacing.
+  repulsion <- max(0, min(1, if (is.na(repulsion)) 0 else repulsion))
+  if (repulsion > 0 && any(!is.na(comm_ids))) {
+    global_centre <- colMeans(lyt)
+    for (cid in unique(comm_ids[!is.na(comm_ids)])) {
+      idx   <- which(!is.na(comm_ids) & comm_ids == cid)
+      shift <- (colMeans(lyt[idx, , drop = FALSE]) - global_centre) * (repulsion * 2)
+      lyt[idx, 1] <- lyt[idx, 1] + shift[1]
+      lyt[idx, 2] <- lyt[idx, 2] + shift[2]
+    }
+  }
 
   igraph::plot.igraph(
     graph,
