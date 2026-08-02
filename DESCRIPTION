@@ -2,9 +2,12 @@ Package: themescopeR
 Title: Social Representation Analysis via Semantic Network Mapping
 Version: 0.1.0
 Authors@R: c(
-    person("Maria", "Spano", , "maria.spano@unina.it", role = "aut"),
-    person("Michelangelo", "Misuraca", , "mmisuraca@unisa.it", role = "aut"),
-    person("Luca", "D'Aniello", , "luca.daniello@unina.it", role = c("aut", "cre")))
+    person("Luca", "D'Aniello", , "luca.daniello@unina.it", role = c("aut", "cre"),
+    comment = c(ORCID = "0000-0003-1019-9212")),
+    person("Michelangelo", "Misuraca", , "mmisuraca@unisa.it", role = "aut", 
+    comment = c(ORCID = "0000-0002-8794-966X")),
+    person("Maria", "Spano", , "maria.spano@unina.it", role = "aut", 
+    comment = c(ORCID = "0000-0002-3103-2342")))
 Description: Implements the ThemeScope framework for detecting and visualising
     social representations in large-scale digital text corpora. From raw
     documents it builds, via 'udpipe' annotation, sentence-level word
