@@ -23,6 +23,7 @@ License: MIT + file LICENSE
 URL: https://github.com/lucadaniello/themescopeR
 BugReports: https://github.com/lucadaniello/themescopeR/issues
 Encoding: UTF-8
+Language: en-GB
 LazyData: true
 Depends:
     R (>= 4.1.0)

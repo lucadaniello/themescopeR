@@ -19,13 +19,13 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Luca D'Aniello \email{luca.daniello@unina.it}
+\strong{Maintainer}: Luca D'Aniello \email{luca.daniello@unina.it} (\href{https://orcid.org/0000-0003-1019-9212}{ORCID})
 
 Authors:
 \itemize{
-  \item Luca D'Aniello \email{luca.daniello@unina.it}
-  \item Maria Spano \email{maria.spano@unina.it}
-  \item Michelangelo Misuraca \email{mmisuraca@unisa.it}
+  \item Luca D'Aniello \email{luca.daniello@unina.it} (\href{https://orcid.org/0000-0003-1019-9212}{ORCID})
+  \item Michelangelo Misuraca \email{mmisuraca@unisa.it} (\href{https://orcid.org/0000-0002-8794-966X}{ORCID})
+  \item Maria Spano \email{maria.spano@unina.it} (\href{https://orcid.org/0000-0002-3103-2342}{ORCID})
 }
 
 }

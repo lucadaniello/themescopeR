@@ -14,7 +14,7 @@
 # Interaction model (step-by-step, by design):
 #   1. Import      pick the data type, browse, and Import. The demo corpus and
 #                  a saved .themescope archive arrive already annotated.
-#   2. Preprocess  udpipe tokenize + POS (unlocks the rest of the pipeline).
+#   2. Preprocess  udpipe tokenise + POS (unlocks the rest of the pipeline).
 #   3. Run         build the network, detect communities and compute metrics.
 #   4. Refine      change the look of the network without recomputing anything.
 # ==============================================================================
@@ -723,7 +723,7 @@ ui <- page_sidebar(
       accordion(
         multiple = FALSE, open = "Preprocessing",
 
-        # -- Step 1: preprocessing (tokenize + POS) --
+        # -- Step 1: preprocessing (tokenise + POS) --
         accordion_panel(
           "Preprocessing", icon = icon("language"),
           helpText(class = "small text-muted mb-2",
@@ -742,7 +742,7 @@ ui <- page_sidebar(
             uiOutput("model_desc"),
             actionButton("do_preprocess",
                          tagList(icon("wand-magic-sparkles"),
-                                 " Preprocess (tokenize + POS)"),
+                                 " Preprocess (tokenise + POS)"),
                          class = "btn-primary w-100 mt-1"),
             uiOutput("preprocess_status")
           )
@@ -1249,7 +1249,7 @@ server <- function(input, output, session) {
                 tags$code("token"), ", ", tags$code("upos"), ")."),
         tags$li(tags$b("Click Import"), ". For tabular files you can then pick ",
                 "which column holds the ", tags$b("text"), " to analyse."),
-        tags$li(tags$b("Preprocess"), " (tokenize + POS) to unlock the rest of ",
+        tags$li(tags$b("Preprocess"), " (tokenise + POS) to unlock the rest of ",
                 "the pipeline, then ", tags$b("Run analysis"), ".")
       ),
       tags$p(class = "mb-1", tags$b("What to expect for large files:")),
@@ -1511,7 +1511,7 @@ server <- function(input, output, session) {
     }
   })
 
-  # ---- Step 1: preprocess (udpipe tokenize + POS) ----
+  # ---- Step 1: preprocess (udpipe tokenise + POS) ----
   observeEvent(input$do_preprocess, {
     if (is.null(collection())) {
       showNotification("Import raw documents first.", type = "warning"); return()
@@ -1527,7 +1527,7 @@ server <- function(input, output, session) {
                           error = function(e) NULL)
           if (is.null(pth)) input$language else pth
         } else input$language
-        setProgress(0.3, detail = "Annotating (tokenize + POS) ...")
+        setProgress(0.3, detail = "Annotating (tokenise + POS) ...")
         words <- preprocess_texts(collection(), model = mdl, verbose = FALSE)
         words_data(words); annot_key(key); result_obj(NULL)
         setProgress(1, detail = "Done.")
@@ -1765,7 +1765,7 @@ server <- function(input, output, session) {
   # ---- Data tab: Pre-processed data ----
   output$preprocessed_preview_ui <- renderUI({
     if (is.null(words_data())) {
-      return(.empty_state("Run preprocessing (tokenize + POS) to see the annotated tokens."))
+      return(.empty_state("Run preprocessing (tokenise + POS) to see the annotated tokens."))
     }
     tagList(
       tags$p(class = "small text-muted",

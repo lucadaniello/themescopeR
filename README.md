@@ -188,7 +188,7 @@ preprocess_texts(collection, model = "english", text_col = "text",
 ```
 
 Annotates the raw texts with [`udpipe`](https://CRAN.R-project.org/package=udpipe):
-tokenization, lemmatization, sentence segmentation and part-of-speech (UPOS)
+tokenisation, lemmatisation, sentence segmentation and part-of-speech (UPOS)
 tagging. `model` accepts a language name, a `.udpipe` file path, or a loaded
 model object; language models come from the updated Universal Dependencies 2.15
 treebanks and are downloaded once and cached (see
