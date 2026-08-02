@@ -4,7 +4,7 @@
 \alias{read_collection}
 \title{Read a document collection into a tidy data frame}
 \usage{
-read_collection(path, text_col = NULL, id_col = NULL)
+read_collection(path, text_col = NULL, id_col = NULL, sequential_ids = FALSE)
 }
 \arguments{
 \item{path}{Path to a single file or a \code{.zip} archive.}
@@ -15,7 +15,13 @@ that, the sole character column.}
 
 \item{id_col}{Optional name of the document-id column. If \code{NULL}, detected
 from common names (\code{doc_id}, \code{id}, \code{document}, ...); if none is found, a
-sequential \code{doc_id} is generated.}
+sequential \code{doc_id} is generated (\code{doc_1}, \code{doc_2}, ...).}
+
+\item{sequential_ids}{Logical (default \code{FALSE}). If \code{TRUE}, documents are
+always numbered \code{doc_1}, \code{doc_2}, ... The identifier that came with the file
+is not discarded: it is kept as a \code{source_id} column. Useful when the source
+ids are long hashes that clutter the tables (this is what the Shiny GUI
+uses).}
 }
 \value{
 A data frame with \code{doc_id} (character) and \code{text} (character) as the
@@ -42,6 +48,11 @@ coll <- read_collection("sample_collection.csv")
 # The three bundled formats yield identical tidy results
 csv <- read_collection(system.file("extdata", "sample_collection.csv",
                                     package = "themescopeR"))
+
+# Readable ids; the original identifier survives as `source_id`
+csv <- read_collection(system.file("extdata", "sample_collection.csv",
+                                    package = "themescopeR"),
+                       sequential_ids = TRUE)
 
 # A zip of many text files (one document each)
 coll <- read_collection("texts.zip")

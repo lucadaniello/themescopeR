@@ -37,7 +37,7 @@ after \code{unit}.}
 }
 \description{
 Counts the most frequent terms in a POS-filtered, annotated data frame and
-returns them as a tidy vocabulary. The analysis unit — the "word" — can be the
+returns them as a tidy vocabulary. The analysis unit, the "word", can be the
 surface \code{token} or the \code{lemma}.
 }
 \examples{

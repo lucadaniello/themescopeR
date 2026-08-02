@@ -101,13 +101,13 @@ ts_list_models <- function(refresh = FALSE) {
 #' @details
 #' The updated models and lexicons are curated and maintained by
 #' **Massimo Aria** in the `tall.language.models` repository, part of the
-#' \href{https://tall-app.com}{TALL} project. We gratefully acknowledge that work
+#' \href{https://massimoaria.github.io/tall-app/}{TALL} project. We gratefully acknowledge that work
 #' and redistribute nothing here: models are fetched on demand from the source
 #' repository.
 #'
-#' To explore which models are available — together with their treebanks,
+#' To explore which models are available, together with their treebanks,
 #' contributors, descriptions, corpus sizes and Universal Dependencies hub
-#' pages — use [ts_list_models()] (whose returned data frame includes
+#' pages, use [ts_list_models()] (whose returned data frame includes
 #' `description` and `hub_page_link` columns), or browse the repository directly:
 #' \url{https://github.com/massimoaria/tall.language.models}.
 #'

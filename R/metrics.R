@@ -150,7 +150,7 @@ compute_cs <- function(graph, communities, concreteness_lexicon = brysbaert) {
 
 #' Concreteness lexicon coverage diagnostics
 #'
-#' Reports how many terms have a rating in a concreteness lexicon — overall and,
+#' Reports how many terms have a rating in a concreteness lexicon, overall and
 #' for a [themescope()] result, per community. A low coverage means the
 #' Concreteness Score (CS) is computed on few edges and may be unreliable; this
 #' typically happens when the corpus language does not match the lexicon (the
@@ -296,7 +296,7 @@ term_relevance <- function(graph, membership, presence) {
 #'     terms that are both frequent and structurally embedded in their own
 #'     community.}
 #'   \item{`"frequency"`}{the term presence \eqn{a_t} (the number of sentences,
-#'     or documents, in which the term occurs) — the salience component of
+#'     or documents, in which the term occurs), the salience component of
 #'     \eqn{R_t} on its own, i.e. plain frequency-based labelling.}
 #'   \item{`"degree"`}{the network degree of the term (number of co-occurrence
 #'     links).}

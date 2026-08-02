@@ -13,7 +13,9 @@ Description: Implements the ThemeScope framework for detecting and visualising
     anchoring and the Concreteness Score (CS) for objectification. Communities
     are located in a two-dimensional, theoretically grounded representational
     map. The whole pipeline is usable from the R console; an optional 'shiny'
-    graphical interface calls the same exported functions.
+    graphical interface calls the same exported functions. The method is
+    described in Misuraca, Spano and D'Aniello (2026)
+    <doi:10.1177/01655515261454276>.
 License: MIT + file LICENSE
 URL: https://github.com/lucadaniello/themescopeR
 BugReports: https://github.com/lucadaniello/themescopeR/issues
@@ -40,13 +42,15 @@ Suggests:
     bslib,
     DT,
     ggraph (>= 2.1.0),
+    htmltools,
     knitr,
     plotly,
     rmarkdown,
     shiny,
     shinycssloaders,
     testthat (>= 3.0.0),
-    visNetwork
+    visNetwork,
+    writexl
 Roxygen: list(markdown = TRUE)
 Config/testthat/edition: 3
 Config/roxygen2/version: 8.0.0

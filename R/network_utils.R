@@ -20,7 +20,7 @@
 #' Build a vocabulary data frame from an annotated words data frame
 #'
 #' Counts the most frequent terms in a POS-filtered, annotated data frame and
-#' returns them as a tidy vocabulary. The analysis unit — the "word" — can be the
+#' returns them as a tidy vocabulary. The analysis unit, the "word", can be the
 #' surface `token` or the `lemma`.
 #'
 #' @param words_df An annotated data frame (e.g. the output of
@@ -105,11 +105,11 @@ build_vocab <- function(words_df,
 #' commonly used in co-word analysis. Given the co-occurrence count
 #' \eqn{c_{ij}} and the term presences \eqn{a_i, a_j}:
 #' \describe{
-#'   \item{`"association"`}{\eqn{c_{ij} / (a_i a_j)} — Association Strength
+#'   \item{`"association"`}{\eqn{c_{ij} / (a_i a_j)}, Association Strength
 #'     (ThemeScope default; van Eck & Waltman).}
-#'   \item{`"equivalence"`}{\eqn{c_{ij}^2 / (a_i a_j)} — equivalence index.}
+#'   \item{`"equivalence"`}{\eqn{c_{ij}^2 / (a_i a_j)}, equivalence index.}
 #'   \item{`"jaccard"`}{\eqn{c_{ij} / (a_i + a_j - c_{ij})}.}
-#'   \item{`"salton"`}{\eqn{c_{ij} / \sqrt{a_i a_j}} — cosine / Salton's measure.}
+#'   \item{`"salton"`}{\eqn{c_{ij} / \sqrt{a_i a_j}}, cosine or Salton's measure.}
 #'   \item{`"inclusion"`}{\eqn{c_{ij} / \min(a_i, a_j)}.}
 #'   \item{`"frequency"`}{the raw counts, unchanged.}
 #' }
@@ -206,8 +206,8 @@ compute_association_strength <- function(cooc_matrix, presence) {
 #' Counts how many text units (sentences or documents) each pair of vocabulary
 #' terms co-occur in (each pair counted at most once per unit), then optionally
 #' re-weights the counts with a similarity measure (see [normalize_cooccurrence()]).
-#' Also returns the **presence** \eqn{a_t} of each term — the number of units
-#' containing it — which is the correct marginal for the normalisation.
+#' Also returns the **presence** \eqn{a_t} of each term, the number of units
+#' containing it, which is the correct marginal for the normalisation.
 #'
 #' @param words_df An annotated words data frame (e.g. from [preprocess_texts()]),
 #'   containing `doc_id`, `sentence_id`, `upos` and the `unit` column.

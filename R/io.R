@@ -5,6 +5,11 @@
   nms[hit[1]]
 }
 
+# Internal: a name based on `base` that does not clash with `existing`.
+.unique_name <- function(existing, base) {
+  make.unique(c(existing, base))[length(existing) + 1L]
+}
+
 # Internal: read a single non-zip file into a raw data frame (no tidying yet).
 .read_one_raw <- function(path) {
   ext <- tolower(tools::file_ext(path))
@@ -40,8 +45,12 @@
   as.data.frame(objs[[which(is_df)[1]]])
 }
 
+# Internal: sequential document ids (doc_1, doc_2, ...).
+.seq_doc_ids <- function(n) if (n > 0) paste0("doc_", seq_len(n)) else character(0)
+
 # Internal: coerce a raw data frame to the tidy (doc_id, text, ...) layout.
-.tidy_collection <- function(df, text_col = NULL, id_col = NULL, source = NULL) {
+.tidy_collection <- function(df, text_col = NULL, id_col = NULL, source = NULL,
+                             sequential_ids = FALSE) {
   df <- as.data.frame(df, stringsAsFactors = FALSE)
   nms <- names(df)
 
@@ -62,19 +71,43 @@
     cli::cli_abort("Text column {.val {tcol}} not found. Columns: {.field {nms}}.")
   }
 
-  # ---- id column ----
-  icol <- id_col %||% .detect_col(nms, c("doc_id", "id", "document", "docid", "doc"))
-  if (is.na(icol) || is.null(icol)) {
-    df$doc_id <- as.character(seq_len(nrow(df)))
-    icol <- "doc_id"
-  }
-  if (!icol %in% nms && icol != "doc_id") {
-    cli::cli_abort("Id column {.val {icol}} not found. Columns: {.field {nms}}.")
-  }
-
+  # ---- rename the text column first ----
+  # Park any pre-existing (different) column called "text" so the rename below
+  # cannot create duplicate column names.
   out <- df
+  if (tcol != "text" && "text" %in% names(out)) {
+    names(out)[names(out) == "text"] <- .unique_name(names(out), "text_orig")
+  }
   names(out)[names(out) == tcol] <- "text"
-  if (icol != "doc_id") names(out)[names(out) == icol] <- "doc_id"
+  nms2 <- names(out)
+
+  # ---- id column ----
+  # Resolve on the post-rename frame, so the id can never be the text column
+  # (e.g. when `text_col` is forced to what would also be the id candidate).
+  icol <- id_col
+  if (!is.null(icol) && identical(icol, tcol)) icol <- NULL
+  if (is.null(icol)) icol <- .detect_col(nms2, c("doc_id", "id", "document", "docid", "doc"))
+  if (is.na(icol) || is.null(icol)) {
+    out$doc_id <- .seq_doc_ids(nrow(out))
+  } else if (isTRUE(sequential_ids)) {
+    # Keep the identifier that came with the file as an ordinary column and
+    # number the documents doc_1, doc_2, ... for readability.
+    if (!icol %in% nms2) {
+      cli::cli_abort("Id column {.val {icol}} not found. Columns: {.field {nms2}}.")
+    }
+    names(out)[names(out) == icol] <- .unique_name(setdiff(names(out), icol), "source_id")
+    out$doc_id <- .seq_doc_ids(nrow(out))
+  } else {
+    if (!icol %in% nms2) {
+      cli::cli_abort("Id column {.val {icol}} not found. Columns: {.field {nms2}}.")
+    }
+    if (icol != "doc_id") {
+      if ("doc_id" %in% names(out)) {
+        names(out)[names(out) == "doc_id"] <- .unique_name(names(out), "doc_id_orig")
+      }
+      names(out)[names(out) == icol] <- "doc_id"
+    }
+  }
 
   out$doc_id <- as.character(out$doc_id)
   out$text   <- as.character(out$text)
@@ -110,7 +143,12 @@
 #'   that, the sole character column.
 #' @param id_col Optional name of the document-id column. If `NULL`, detected
 #'   from common names (`doc_id`, `id`, `document`, ...); if none is found, a
-#'   sequential `doc_id` is generated.
+#'   sequential `doc_id` is generated (`doc_1`, `doc_2`, ...).
+#' @param sequential_ids Logical (default `FALSE`). If `TRUE`, documents are
+#'   always numbered `doc_1`, `doc_2`, ... The identifier that came with the file
+#'   is not discarded: it is kept as a `source_id` column. Useful when the source
+#'   ids are long hashes that clutter the tables (this is what the Shiny GUI
+#'   uses).
 #'
 #' @return A data frame with `doc_id` (character) and `text` (character) as the
 #'   first two columns, followed by any remaining source columns. Duplicated ids
@@ -125,12 +163,18 @@
 #' csv <- read_collection(system.file("extdata", "sample_collection.csv",
 #'                                     package = "themescopeR"))
 #'
+#' # Readable ids; the original identifier survives as `source_id`
+#' csv <- read_collection(system.file("extdata", "sample_collection.csv",
+#'                                     package = "themescopeR"),
+#'                        sequential_ids = TRUE)
+#'
 #' # A zip of many text files (one document each)
 #' coll <- read_collection("texts.zip")
 #' }
 #'
 #' @export
-read_collection <- function(path, text_col = NULL, id_col = NULL) {
+read_collection <- function(path, text_col = NULL, id_col = NULL,
+                            sequential_ids = FALSE) {
   if (!is.character(path) || length(path) != 1) {
     cli::cli_abort("{.arg path} must be a single file path.")
   }
@@ -154,15 +198,18 @@ read_collection <- function(path, text_col = NULL, id_col = NULL) {
     }
     parts <- lapply(files, function(f) {
       .tidy_collection(.read_one_raw(f), text_col = text_col, id_col = id_col,
-                       source = basename(f))
+                       source = basename(f), sequential_ids = sequential_ids)
     })
     out <- dplyr::bind_rows(parts)
-    if (anyDuplicated(out$doc_id)) {
+    if (isTRUE(sequential_ids)) {
+      # Each file was numbered from 1; renumber once across the whole archive.
+      out$doc_id <- .seq_doc_ids(nrow(out))
+    } else if (anyDuplicated(out$doc_id)) {
       out$doc_id <- make.unique(out$doc_id)
     }
     return(out)
   }
 
   .tidy_collection(.read_one_raw(path), text_col = text_col, id_col = id_col,
-                   source = basename(path))
+                   source = basename(path), sequential_ids = sequential_ids)
 }

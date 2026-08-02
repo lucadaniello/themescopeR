@@ -17,8 +17,33 @@ test_that("read_collection generates doc_id when absent and detects text", {
   tmp <- tempfile(fileext = ".csv")
   utils::write.csv(data.frame(body = c("a b", "c d")), tmp, row.names = FALSE)
   out <- read_collection(tmp, text_col = "body")
-  expect_equal(out$doc_id, c("1", "2"))
+  expect_equal(out$doc_id, c("doc_1", "doc_2"))
   expect_equal(out$text, c("a b", "c d"))
+})
+
+test_that("sequential_ids renumbers documents and keeps the source id", {
+  tmp <- tempfile(fileext = ".csv")
+  utils::write.csv(
+    data.frame(doc_id = c("t3_abc", "t3_def"), text = c("a b", "c d")),
+    tmp, row.names = FALSE
+  )
+  out <- read_collection(tmp, sequential_ids = TRUE)
+  expect_equal(out$doc_id, c("doc_1", "doc_2"))
+  expect_equal(out$source_id, c("t3_abc", "t3_def"))
+  expect_identical(names(out)[1:2], c("doc_id", "text"))
+})
+
+test_that("sequential_ids numbers a zip archive continuously", {
+  d <- tempfile(); dir.create(d)
+  writeLines("the cat sat", file.path(d, "doc1.txt"))
+  writeLines("the dog ran", file.path(d, "doc2.txt"))
+  zip_path <- tempfile(fileext = ".zip")
+  old <- setwd(d); on.exit(setwd(old), add = TRUE)
+  utils::zip(zip_path, files = c("doc1.txt", "doc2.txt"), flags = "-q")
+  setwd(old)
+  out <- read_collection(zip_path, sequential_ids = TRUE)
+  expect_equal(out$doc_id, c("doc_1", "doc_2"))
+  expect_setequal(out$source_id, c("doc1", "doc2"))
 })
 
 test_that("read_collection handles a zip of many txt files (one doc each)", {

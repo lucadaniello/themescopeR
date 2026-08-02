@@ -27,11 +27,11 @@ Re-weights raw co-occurrence counts with one of several similarity measures
 commonly used in co-word analysis. Given the co-occurrence count
 \eqn{c_{ij}} and the term presences \eqn{a_i, a_j}:
 \describe{
-\item{\code{"association"}}{\eqn{c_{ij} / (a_i a_j)} — Association Strength
+\item{\code{"association"}}{\eqn{c_{ij} / (a_i a_j)}, Association Strength
 (ThemeScope default; van Eck & Waltman).}
-\item{\code{"equivalence"}}{\eqn{c_{ij}^2 / (a_i a_j)} — equivalence index.}
+\item{\code{"equivalence"}}{\eqn{c_{ij}^2 / (a_i a_j)}, equivalence index.}
 \item{\code{"jaccard"}}{\eqn{c_{ij} / (a_i + a_j - c_{ij})}.}
-\item{\code{"salton"}}{\eqn{c_{ij} / \sqrt{a_i a_j}} — cosine / Salton's measure.}
+\item{\code{"salton"}}{\eqn{c_{ij} / \sqrt{a_i a_j}}, cosine or Salton's measure.}
 \item{\code{"inclusion"}}{\eqn{c_{ij} / \min(a_i, a_j)}.}
 \item{\code{"frequency"}}{the raw counts, unchanged.}
 }

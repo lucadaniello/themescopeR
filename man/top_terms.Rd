@@ -31,7 +31,7 @@ high-frequency terms that co-occur across several clusters and favours
 terms that are both frequent and structurally embedded in their own
 community.}
 \item{\code{"frequency"}}{the term presence \eqn{a_t} (the number of sentences,
-or documents, in which the term occurs) — the salience component of
+or documents, in which the term occurs), the salience component of
 \eqn{R_t} on its own, i.e. plain frequency-based labelling.}
 \item{\code{"degree"}}{the network degree of the term (number of co-occurrence
 links).}

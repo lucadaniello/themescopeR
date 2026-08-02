@@ -1,0 +1,14 @@
+bibentry(
+  bibtype = "Article",
+  title   = "ThemeScope: A quantitative thematic analysis for depicting social representations in digital arenas",
+  author  = c(
+    person("Michelangelo", "Misuraca"),
+    person("Maria", "Spano"),
+    person("Luca", "D'Aniello")
+  ),
+  journal = "Journal of Information Science",
+  year    = "2026",
+  doi     = "10.1177/01655515261454276",
+  header  = "To cite themescopeR or the ThemeScope method in publications, use:",
+  footer  = "Publishing results obtained with themescopeR without this attribution violates the terms of use."
+)

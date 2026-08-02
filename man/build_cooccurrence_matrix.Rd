@@ -55,8 +55,8 @@ A named list with:
 Counts how many text units (sentences or documents) each pair of vocabulary
 terms co-occur in (each pair counted at most once per unit), then optionally
 re-weights the counts with a similarity measure (see \code{\link[=normalize_cooccurrence]{normalize_cooccurrence()}}).
-Also returns the \strong{presence} \eqn{a_t} of each term — the number of units
-containing it — which is the correct marginal for the normalisation.
+Also returns the \strong{presence} \eqn{a_t} of each term, the number of units
+containing it, which is the correct marginal for the normalisation.
 }
 \examples{
 df <- data.frame(

@@ -19,7 +19,7 @@ the overall row), \code{n_terms}, \code{n_matched} and \code{coverage} (proporti
 \eqn{[0, 1]}).
 }
 \description{
-Reports how many terms have a rating in a concreteness lexicon — overall and,
+Reports how many terms have a rating in a concreteness lexicon, overall and
 for a \code{\link[=themescope]{themescope()}} result, per community. A low coverage means the
 Concreteness Score (CS) is computed on few edges and may be unreliable; this
 typically happens when the corpus language does not match the lexicon (the
