@@ -20,8 +20,9 @@ Coherence is the ratio of actual to maximum possible edges within a community
 (its edge density): \eqn{|E_i| / (|G_i|(|G_i|-1)/2)}.
 }
 \examples{
-\dontrun{
-compute_coherence(net, comm$communities)
-}
+words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+                              package = "themescopeR"))
+result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+compute_coherence(result$graph, result$communities)
 
 }

@@ -2,7 +2,11 @@
 
 ## Test environments
 
-* local macOS, R 4.6.0
+* local macOS 15, R 4.6.0
+* win-builder (devel and release)
+* macOS builder (R release)
+* GitHub Actions: ubuntu-latest (devel, release, oldrel-1), windows-latest,
+  macOS-latest
 
 ## R CMD check results
 
@@ -13,10 +17,19 @@
 ## Notes on the submission
 
 * The package downloads udpipe language models on demand from
-  <https://github.com/massimoaria/tall.language.models> and caches them in
-  `tools::R_user_dir("themescopeR", "cache")`. Nothing is written outside that
-  cache, and no example or test needs the network: everything that would require
-  a model download is wrapped in `\dontrun{}`, and the tests use small
-  self-contained fixtures.
-* Examples that need a corpus, a fitted analysis or an internet connection are
-  wrapped in `\dontrun{}` for the same reason.
+  <https://github.com/massimoaria/tall.language.models> and caches them under
+  `tools::R_user_dir("themescopeR", "cache")`. Nothing is written anywhere else,
+  and the download only happens when the user calls `ts_download_model()` or
+  passes a language name to `preprocess_texts()`. No example, test or vignette
+  needs the network: the few examples that would require a model download are
+  wrapped in `\dontrun{}`, and everything else runs on the small annotated
+  corpus bundled in `inst/extdata`.
+* `themescope_app()` starts an interactive Shiny application, so its example is
+  wrapped in `\dontrun{}`. It restores `options()` on exit.
+* `detect_communities()` and `plot_network()` accept a `seed` argument for
+  reproducibility. When one is supplied they restore the previous value of
+  `.Random.seed` on exit, so the user's random stream is left untouched.
+* The URL checker may report the DOI <https://doi.org/10.1177/01655515261454276>
+  and the Kaggle dataset page as 403 or 404. Both are reachable from a browser;
+  the publishers block automated requests. The DOI is given in its canonical
+  form.

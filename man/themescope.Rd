@@ -140,14 +140,19 @@ z-scored metrics plus quadrant).
 
 }}
 \examples{
-\dontrun{
-# From an annotated words data frame
-result <- themescope(words_df, vocab_size = 1500)
-plot(result, type = "map")
+# The bundled demo corpus is shipped already tokenised and POS tagged
+words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+                              package = "themescopeR"))
+result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+result
+as.data.frame(result)
 
-# From raw texts (annotated internally)
+\dontrun{
+# Straight from raw texts: annotated internally, which downloads a udpipe
+# language model on first use
 coll   <- read_collection("sample_collection.csv")
 result <- themescope(coll, model = "english")
+plot(result, type = "map")
 }
 
 }

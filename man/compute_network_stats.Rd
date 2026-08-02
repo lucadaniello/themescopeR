@@ -20,8 +20,9 @@ A list with \code{community_stats} (data frame: \code{community}, \code{size},
 Compute network-level and community-level statistics
 }
 \examples{
-\dontrun{
-compute_network_stats(net, comm$communities)$global_stats
-}
+words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+                              package = "themescopeR"))
+result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+compute_network_stats(result$graph, result$communities)$global_stats
 
 }

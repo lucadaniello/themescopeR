@@ -28,8 +28,9 @@ where \eqn{w_{t,t'}} is the AS edge weight and \eqn{c(t)} the concreteness
 rating. Only edges where \strong{both} endpoints have a rating contribute.
 }
 \examples{
-\dontrun{
-cs <- compute_cs(net, comm$communities)
-}
+words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+                              package = "themescopeR"))
+result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+compute_cs(result$graph, result$communities)
 
 }

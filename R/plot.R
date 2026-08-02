@@ -180,9 +180,10 @@ plot_themescope <- function(psi,
 #' @return Invisibly `NULL`; called for the plot it draws.
 #'
 #' @examples
-#' \dontrun{
-#' plot_network(net, comm$membership, top_n_labels = 5)
-#' }
+#' words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+#'                               package = "themescopeR"))
+#' result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+#' plot_network(result$graph, result$membership, top_n_labels = 3, seed = 1)
 #'
 #' @export
 plot_network <- function(graph,
@@ -222,7 +223,16 @@ plot_network <- function(graph,
     dh = igraph::layout_with_dh, lgl = igraph::layout_with_lgl,
     igraph::layout_with_fr
   )
-  if (!is.null(seed)) set.seed(as.integer(seed))
+  # Reproducible layout, with the user's random stream restored on exit.
+  if (!is.null(seed)) {
+    if (exists(".Random.seed", envir = globalenv(), inherits = FALSE)) {
+      old_seed <- get(".Random.seed", envir = globalenv(), inherits = FALSE)
+      on.exit(assign(".Random.seed", old_seed, envir = globalenv()), add = TRUE)
+    } else {
+      on.exit(suppressWarnings(rm(".Random.seed", envir = globalenv())), add = TRUE)
+    }
+    set.seed(as.integer(seed))
+  }
   lyt <- layout_fn(graph)
 
   # Repulsion: displace each community's nodes outward from the global centre so

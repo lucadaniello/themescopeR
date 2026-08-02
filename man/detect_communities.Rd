@@ -51,9 +51,16 @@ Runs walktrap or Louvain community detection on a weighted undirected graph
 and filters out small communities.
 }
 \examples{
-\dontrun{
-comm <- detect_communities(net, algorithm = "walktrap", min_size = 10, seed = 1)
-comm <- detect_communities(net, algorithm = "leiden", resolution = 1, seed = 1)
-}
+words <- readRDS(system.file("extdata", "demo_annotated.rds",
+                             package = "themescopeR"))
+vocab <- build_vocab(words, vocab_size = 300)
+cooc  <- build_cooccurrence_matrix(words, vocab = vocab)
+net   <- build_cooccurrence_network(cooc$cooc_matrix, verbose = FALSE)
+comm <- detect_communities(net, algorithm = "walktrap", min_size = 5, seed = 1)
+lengths(comm$communities)
+
+comm <- detect_communities(net, algorithm = "louvain", resolution = 1,
+                           min_size = 5, seed = 1)
+lengths(comm$communities)
 
 }

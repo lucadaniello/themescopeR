@@ -47,11 +47,20 @@ Reopening the archive with \code{\link[=read_themescope]{read_themescope()}} res
 top terms without re-annotating the corpus or re-running the pipeline.
 }
 \examples{
+words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+                              package = "themescopeR"))
+result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+f <- file.path(tempdir(), "demo.themescope")
+save_themescope(result, f, meta = list(language = "english",
+                                       lexicon = "Brysbaert"))
+summary(read_themescope(f))
+unlink(f)
+
 \dontrun{
-result <- themescope(tokens, seed = 1)
+# Store the annotated corpus and the raw texts alongside the results, so the
+# archive can be re-analysed later with different parameters
 save_themescope(result, "climate_study.themescope",
-                words = tokens, collection = coll,
-                meta = list(language = "english", lexicon = "Brysbaert"))
+                words = words, collection = coll)
 }
 
 }

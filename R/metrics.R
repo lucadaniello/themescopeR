@@ -30,9 +30,10 @@
 #' @return A named numeric vector of PSI values, one per community.
 #'
 #' @examples
-#' \dontrun{
-#' psi <- compute_psi(net, comm$communities, cooc$presence)
-#' }
+#' words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+#'                               package = "themescopeR"))
+#' result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+#' compute_psi(result$graph, result$communities, result$presence)
 #'
 #' @export
 compute_psi <- function(graph, communities, presence) {
@@ -101,9 +102,10 @@ compute_psi <- function(graph, communities, presence) {
 #'   both endpoints in the lexicon return `NA`.
 #'
 #' @examples
-#' \dontrun{
-#' cs <- compute_cs(net, comm$communities)
-#' }
+#' words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+#'                               package = "themescopeR"))
+#' result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+#' compute_cs(result$graph, result$communities)
 #'
 #' @export
 compute_cs <- function(graph, communities, concreteness_lexicon = brysbaert) {
@@ -221,9 +223,11 @@ lexicon_coverage <- function(x, lexicon = brysbaert) {
 #'   relevance. Unassigned vertices are dropped.
 #'
 #' @examples
-#' \dontrun{
-#' rel <- term_relevance(net, comm$membership, cooc$presence)
-#' }
+#' words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+#'                               package = "themescopeR"))
+#' result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+#' rel <- term_relevance(result$graph, result$membership, result$presence)
+#' head(rel)
 #'
 #' @export
 term_relevance <- function(graph, membership, presence) {
@@ -314,10 +318,11 @@ term_relevance <- function(graph, membership, presence) {
 #' @seealso [term_relevance()] for the relevance measure \eqn{R_t}.
 #'
 #' @examples
-#' \dontrun{
-#' top_terms(result, n = 10)                  # by relevance R_t (default)
-#' top_terms(result, n = 10, by = "frequency") # by term frequency a_t
-#' }
+#' words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+#'                               package = "themescopeR"))
+#' result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+#' top_terms(result, n = 5)                    # by relevance R_t (default)
+#' top_terms(result, n = 5, by = "frequency")  # by term presence a_t
 #'
 #' @export
 top_terms <- function(x, n = 10, by = c("relevance", "frequency", "degree")) {
@@ -369,9 +374,10 @@ top_terms <- function(x, n = 10, by = c("relevance", "frequency", "degree")) {
 #'   `n_nodes`, `n_edges`, `mean_degree`, `modularity`, `n_communities`).
 #'
 #' @examples
-#' \dontrun{
-#' compute_network_stats(net, comm$communities)$global_stats
-#' }
+#' words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+#'                               package = "themescopeR"))
+#' result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+#' compute_network_stats(result$graph, result$communities)$global_stats
 #'
 #' @export
 compute_network_stats <- function(graph, communities) {
@@ -438,9 +444,10 @@ compute_network_stats <- function(graph, communities) {
 #'   with fewer than 2 members return `NA`.
 #'
 #' @examples
-#' \dontrun{
-#' compute_coherence(net, comm$communities)
-#' }
+#' words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+#'                               package = "themescopeR"))
+#' result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+#' compute_coherence(result$graph, result$communities)
 #'
 #' @export
 compute_coherence <- function(graph, communities) {

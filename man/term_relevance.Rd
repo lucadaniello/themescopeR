@@ -31,8 +31,10 @@ terms that are both frequent and predominantly embedded within their
 community, downweighting generic terms shared across clusters.
 }
 \examples{
-\dontrun{
-rel <- term_relevance(net, comm$membership, cooc$presence)
-}
+words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+                              package = "themescopeR"))
+result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+rel <- term_relevance(result$graph, result$membership, result$presence)
+head(rel)
 
 }

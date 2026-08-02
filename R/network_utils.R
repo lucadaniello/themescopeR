@@ -343,9 +343,13 @@ build_cooccurrence_matrix <- function(words_df,
 #'   least one retained edge appear as vertices.
 #'
 #' @examples
-#' \dontrun{
-#' net <- build_cooccurrence_network(cooc$cooc_matrix, threshold_percentile = 0.98)
-#' }
+#' words <- readRDS(system.file("extdata", "demo_annotated.rds",
+#'                              package = "themescopeR"))
+#' vocab <- build_vocab(words, vocab_size = 300)
+#' cooc  <- build_cooccurrence_matrix(words, vocab = vocab)
+#' net   <- build_cooccurrence_network(cooc$cooc_matrix, threshold_percentile = 0.98,
+#'                                     verbose = FALSE)
+#' net
 #'
 #' @export
 build_cooccurrence_network <- function(as_matrix,

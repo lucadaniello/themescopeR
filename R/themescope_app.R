@@ -46,7 +46,9 @@ themescope_app <- function(display_mode = "normal", max_upload_size_mb = NULL, .
         is.na(max_upload_size_mb) || max_upload_size_mb <= 0) {
       cli::cli_abort("{.arg max_upload_size_mb} must be a single positive number (megabytes).")
     }
-    options(shiny.maxRequestSize = max_upload_size_mb * 1024^2)
+    # CRAN policy: leave the user's options as we found them.
+    old_opts <- options(shiny.maxRequestSize = max_upload_size_mb * 1024^2)
+    on.exit(options(old_opts), add = TRUE)
   }
 
   app_dir <- system.file("shiny-examples", "themescope_app", package = "themescopeR")

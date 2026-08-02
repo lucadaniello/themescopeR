@@ -51,8 +51,9 @@ edges are light grey, node size scales with degree, and the highest-degree
 terms of each community are labelled.
 }
 \examples{
-\dontrun{
-plot_network(net, comm$membership, top_n_labels = 5)
-}
+words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+                              package = "themescopeR"))
+result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+plot_network(result$graph, result$membership, top_n_labels = 3, seed = 1)
 
 }

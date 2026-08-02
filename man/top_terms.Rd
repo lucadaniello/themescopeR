@@ -38,10 +38,11 @@ links).}
 }
 }
 \examples{
-\dontrun{
-top_terms(result, n = 10)                  # by relevance R_t (default)
-top_terms(result, n = 10, by = "frequency") # by term frequency a_t
-}
+words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+                              package = "themescopeR"))
+result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+top_terms(result, n = 5)                    # by relevance R_t (default)
+top_terms(result, n = 5, by = "frequency")  # by term presence a_t
 
 }
 \seealso{

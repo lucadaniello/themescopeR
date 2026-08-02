@@ -50,11 +50,20 @@
 #' @seealso [read_themescope()] to load an archive back.
 #'
 #' @examples
+#' words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+#'                               package = "themescopeR"))
+#' result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+#' f <- file.path(tempdir(), "demo.themescope")
+#' save_themescope(result, f, meta = list(language = "english",
+#'                                        lexicon = "Brysbaert"))
+#' summary(read_themescope(f))
+#' unlink(f)
+#'
 #' \dontrun{
-#' result <- themescope(tokens, seed = 1)
+#' # Store the annotated corpus and the raw texts alongside the results, so the
+#' # archive can be re-analysed later with different parameters
 #' save_themescope(result, "climate_study.themescope",
-#'                 words = tokens, collection = coll,
-#'                 meta = list(language = "english", lexicon = "Brysbaert"))
+#'                 words = words, collection = coll)
 #' }
 #'
 #' @export
@@ -117,11 +126,16 @@ save_themescope <- function(x, file, words = NULL, collection = NULL,
 #' @seealso [save_themescope()].
 #'
 #' @examples
-#' \dontrun{
-#' archive <- read_themescope("climate_study.themescope")
+#' words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+#'                               package = "themescopeR"))
+#' result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+#' f <- file.path(tempdir(), "demo.themescope")
+#' save_themescope(result, f)
+#'
+#' archive <- read_themescope(f)
 #' summary(archive)
-#' plot(archive$result, type = "map", label = "terms")
-#' }
+#' archive$result
+#' unlink(f)
 #'
 #' @export
 read_themescope <- function(file) {

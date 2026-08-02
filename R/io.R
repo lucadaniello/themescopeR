@@ -155,20 +155,18 @@
 #'   are made unique with a warning.
 #'
 #' @examples
+#' # The bundled 1000-document sample
+#' path <- system.file("extdata", "sample_collection.csv", package = "themescopeR")
+#' coll <- read_collection(path)
+#' head(coll$doc_id, 3)
+#'
+#' # Readable ids; the identifier from the file survives as `source_id`
+#' coll <- read_collection(path, sequential_ids = TRUE)
+#' head(coll[, c("doc_id", "source_id")], 3)
+#'
 #' \dontrun{
-#' # Single CSV
-#' coll <- read_collection("sample_collection.csv")
-#'
-#' # The three bundled formats yield identical tidy results
-#' csv <- read_collection(system.file("extdata", "sample_collection.csv",
-#'                                     package = "themescopeR"))
-#'
-#' # Readable ids; the original identifier survives as `source_id`
-#' csv <- read_collection(system.file("extdata", "sample_collection.csv",
-#'                                     package = "themescopeR"),
-#'                        sequential_ids = TRUE)
-#'
-#' # A zip of many text files (one document each)
+#' # Any single file, or a zip holding many (one document per .txt)
+#' coll <- read_collection("sample_collection.xlsx")
 #' coll <- read_collection("texts.zip")
 #' }
 #'

@@ -21,8 +21,13 @@ For each retained community, induces the subgraph of its vertices and their
 interconnecting edges.
 }
 \examples{
-\dontrun{
+words <- readRDS(system.file("extdata", "demo_annotated.rds",
+                             package = "themescopeR"))
+vocab <- build_vocab(words, vocab_size = 300)
+cooc  <- build_cooccurrence_matrix(words, vocab = vocab)
+net   <- build_cooccurrence_network(cooc$cooc_matrix, verbose = FALSE)
+comm <- detect_communities(net, min_size = 5, seed = 1)
 subgraphs <- get_community_subgraphs(net, comm$membership)
-}
+vapply(subgraphs, igraph::vcount, numeric(1))
 
 }

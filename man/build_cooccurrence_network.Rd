@@ -33,8 +33,12 @@ matrix, retaining only edges whose weight exceeds the \code{threshold_percentile
 quantile of all non-zero weights.
 }
 \examples{
-\dontrun{
-net <- build_cooccurrence_network(cooc$cooc_matrix, threshold_percentile = 0.98)
-}
+words <- readRDS(system.file("extdata", "demo_annotated.rds",
+                             package = "themescopeR"))
+vocab <- build_vocab(words, vocab_size = 300)
+cooc  <- build_cooccurrence_matrix(words, vocab = vocab)
+net   <- build_cooccurrence_network(cooc$cooc_matrix, threshold_percentile = 0.98,
+                                    verbose = FALSE)
+net
 
 }

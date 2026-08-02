@@ -43,11 +43,16 @@ window displays.
 
 }}
 \examples{
-\dontrun{
-archive <- read_themescope("climate_study.themescope")
+words  <- readRDS(system.file("extdata", "demo_annotated.rds",
+                              package = "themescopeR"))
+result <- themescope(words, vocab_size = 300, seed = 1, verbose = FALSE)
+f <- file.path(tempdir(), "demo.themescope")
+save_themescope(result, f)
+
+archive <- read_themescope(f)
 summary(archive)
-plot(archive$result, type = "map", label = "terms")
-}
+archive$result
+unlink(f)
 
 }
 \seealso{
