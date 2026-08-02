@@ -13,6 +13,10 @@
 0 errors | 0 warnings | 1 note
 
 * This is a new release.
+* The note also lists four possibly misspelled words in DESCRIPTION:
+  "D'Aniello", "Misuraca" and "Spano" are the surnames of the three authors, and
+  "ThemeScope" is the name of the method the package implements. All four are
+  spelled correctly.
 
 ## Notes on the submission
 
