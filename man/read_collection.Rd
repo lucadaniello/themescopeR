@@ -50,10 +50,14 @@ head(coll$doc_id, 3)
 coll <- read_collection(path, sequential_ids = TRUE)
 head(coll[, c("doc_id", "source_id")], 3)
 
-\dontrun{
-# Any single file, or a zip holding many (one document per .txt)
-coll <- read_collection("sample_collection.xlsx")
-coll <- read_collection("texts.zip")
-}
+# A zip holding many .txt files, one document each
+d <- file.path(tempdir(), "texts")
+dir.create(d, showWarnings = FALSE)
+writeLines("the cat sat on the mat", file.path(d, "doc1.txt"))
+writeLines("the dog ran in the park", file.path(d, "doc2.txt"))
+z <- file.path(tempdir(), "texts.zip")
+utils::zip(z, files = list.files(d, full.names = TRUE), flags = "-qj")
+read_collection(z)
+unlink(c(d, z), recursive = TRUE)
 
 }

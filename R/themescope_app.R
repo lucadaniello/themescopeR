@@ -35,8 +35,8 @@
 #' `install.packages()`.
 #'
 #' @examples
-#' \dontrun{
-#' themescope_app()
+#' if (interactive()) {
+#'   themescope_app()
 #' }
 #'
 #' @export

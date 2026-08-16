@@ -56,11 +56,13 @@ save_themescope(result, f, meta = list(language = "english",
 summary(read_themescope(f))
 unlink(f)
 
-\dontrun{
-# Store the annotated corpus and the raw texts alongside the results, so the
-# archive can be re-analysed later with different parameters
-save_themescope(result, "climate_study.themescope",
-                words = words, collection = coll)
+\donttest{
+# Store the annotated corpus alongside the results, so the archive can be
+# re-analysed later with different parameters (slower: it compresses 60k rows)
+g <- file.path(tempdir(), "demo-with-corpus.themescope")
+save_themescope(result, g, words = words)
+summary(read_themescope(g))
+unlink(g)
 }
 
 }

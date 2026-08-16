@@ -4,10 +4,13 @@
 \alias{ts_list_models}
 \title{List the available updated language models}
 \usage{
-ts_list_models(refresh = FALSE)
+ts_list_models(refresh = FALSE, cache_dir = NULL)
 }
 \arguments{
 \item{refresh}{Logical. Force a re-download of the registry (default \code{FALSE}).}
+
+\item{cache_dir}{Directory to keep the registry in. If \code{NULL} (default) it
+goes to \code{\link[=themescope_cache_dir]{themescope_cache_dir()}}, created at that point and only then.}
 }
 \value{
 A data frame with one row per model, including \code{language_name},
@@ -15,13 +18,18 @@ A data frame with one row per model, including \code{language_name},
 }
 \description{
 Retrieves the registry of updated \pkg{udpipe} models (Universal Dependencies
-2.15) maintained for TALL. The registry is cached in
-\code{\link[=themescope_cache_dir]{themescope_cache_dir()}} and reused on later calls.
+2.15) maintained for TALL. The registry is downloaded once, cached in
+\code{\link[=themescope_cache_dir]{themescope_cache_dir()}} and reused on later calls; the cache directory is
+created only at that point.
 }
 \examples{
-\dontrun{
-models <- ts_list_models()
-subset(models, language_name == "english")[, c("language_name", "treebank", "file")]
+\donttest{
+# Needs an internet connection the first time; cached afterwards. Kept in the
+# session temporary directory here, so nothing persists.
+models <- try(ts_list_models(cache_dir = tempdir()), silent = TRUE)
+if (!inherits(models, "try-error")) {
+  head(models[, c("language_name", "treebank")])
+}
 }
 
 }

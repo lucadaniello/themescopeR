@@ -46,8 +46,8 @@ The GUI requires a few additional packages declared in \code{Suggests}:
 \code{install.packages()}.
 }
 \examples{
-\dontrun{
-themescope_app()
+if (interactive()) {
+  themescope_app()
 }
 
 }

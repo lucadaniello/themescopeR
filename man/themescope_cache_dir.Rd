@@ -4,20 +4,34 @@
 \alias{themescope_cache_dir}
 \title{Location of the themescopeR model cache}
 \usage{
-themescope_cache_dir()
+themescope_cache_dir(create = FALSE)
+}
+\arguments{
+\item{create}{Logical. Create the directory if it does not exist
+(default \code{FALSE}).}
 }
 \value{
 A character path to the cache directory.
 }
 \description{
-Returns (and creates, if needed) the directory where downloaded \pkg{udpipe}
-language models are cached, so they are downloaded only once. Defaults to
-\code{tools::R_user_dir("themescopeR", "cache")}; override with
-\code{options(themescopeR.model_dir = "/path")}.
+Returns the directory where downloaded \pkg{udpipe} language models are
+cached, so a model is fetched only once and reused across analyses. Defaults
+to \code{tools::R_user_dir("themescopeR", "cache")}, the location R reserves for
+package caches; override it with \code{options(themescopeR.model_dir = "/path")}.
+}
+\details{
+Asking where the cache is does \strong{not} create anything: the directory is
+created only when a model is actually downloaded, that is when you call
+\code{\link[=ts_download_model]{ts_download_model()}} or hand a language name to \code{\link[=preprocess_texts]{preprocess_texts()}}.
+Nothing else in the package writes outside the session temporary directory.
+Use \code{\link[=ts_clear_cache]{ts_clear_cache()}} to delete what has been cached.
 }
 \examples{
-\dontrun{
+# Where models would be cached; this call creates nothing
 themescope_cache_dir()
-}
 
+}
+\seealso{
+\code{\link[=ts_clear_cache]{ts_clear_cache()}} to remove cached models,
+\code{\link[=ts_download_model]{ts_download_model()}} to populate the cache.
 }

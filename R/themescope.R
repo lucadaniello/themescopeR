@@ -60,12 +60,18 @@
 #' result
 #' as.data.frame(result)
 #'
-#' \dontrun{
+#' \donttest{
 #' # Straight from raw texts: annotated internally, which downloads a udpipe
-#' # language model on first use
-#' coll   <- read_collection("sample_collection.csv")
-#' result <- themescope(coll, model = "english")
-#' plot(result, type = "map")
+#' # language model on first use (kept in the session temporary directory here)
+#' coll  <- read_collection(system.file("extdata", "sample_collection.csv",
+#'                                      package = "themescopeR"))
+#' model <- try(ts_download_model("english", model_dir = tempdir()), silent = TRUE)
+#' if (!inherits(model, "try-error")) {
+#'   res <- themescope(utils::head(coll, 100), model = model, vocab_size = 100,
+#'                     threshold_percentile = 0.9, min_community_size = 3,
+#'                     seed = 1, verbose = FALSE)
+#'   plot(res, type = "map")
+#' }
 #' }
 #'
 #' @export

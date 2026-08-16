@@ -4,7 +4,7 @@
 \alias{ts_model_path}
 \title{Resolve the cached path of an updated udpipe model}
 \usage{
-ts_model_path(language, treebank = NULL, model_dir = themescope_cache_dir())
+ts_model_path(language, treebank = NULL, model_dir = NULL)
 }
 \arguments{
 \item{language}{Character language name (e.g. \code{"english"}, \code{"italian"}). See
@@ -13,17 +13,24 @@ ts_model_path(language, treebank = NULL, model_dir = themescope_cache_dir())
 \item{treebank}{Optional treebank name (e.g. \code{"EWT"}, \code{"ISDT"}). If \code{NULL},
 the first model listed for the language is used.}
 
-\item{model_dir}{Cache directory (default \code{\link[=themescope_cache_dir]{themescope_cache_dir()}}).}
+\item{model_dir}{Directory to download into. If \code{NULL} (default) the model is
+cached in \code{\link[=themescope_cache_dir]{themescope_cache_dir()}}, which is created at that point and only
+then. Pass a path of your own (for instance \code{tempdir()}) to keep the
+download inside the current session.}
 }
 \value{
 The path to the cached \code{.udpipe} file, or \code{NA} if it is not cached.
 }
 \description{
-Returns the path to a cached model without downloading it.
+Returns the path to a cached model without downloading anything and without
+creating any directory.
 }
 \examples{
-\dontrun{
-ts_model_path("english")
+\donttest{
+# NA until the model has been downloaded (needs the catalogue, hence a
+# connection on first use)
+p <- try(ts_model_path("english"), silent = TRUE)
+if (!inherits(p, "try-error")) p
 }
 
 }

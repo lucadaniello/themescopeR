@@ -51,10 +51,22 @@ Tokenises, lemmatises and POS-tags a collection of raw documents using a
 \code{\link[=themescope]{themescope()}} and the rest of the backend.
 }
 \examples{
-\dontrun{
-coll   <- read_collection("sample_collection.csv")
-tokens <- preprocess_texts(coll, model = "english")
-result <- themescope(tokens)
+# The shape of the annotation this returns; the bundled demo corpus ships
+# pre-annotated, so no model download is needed to inspect it
+words <- readRDS(system.file("extdata", "demo_annotated.rds",
+                             package = "themescopeR"))
+head(words[, c("doc_id", "sentence_id", "token", "lemma", "upos")])
+
+\donttest{
+# Annotating your own corpus. The language model is downloaded once and
+# cached; here it goes to the session temporary directory instead.
+coll  <- read_collection(system.file("extdata", "sample_collection.csv",
+                                     package = "themescopeR"))
+model <- try(ts_download_model("english", model_dir = tempdir()), silent = TRUE)
+if (!inherits(model, "try-error")) {
+  tokens <- preprocess_texts(utils::head(coll, 5), model = model)
+  head(tokens[, c("doc_id", "token", "lemma", "upos")])
+}
 }
 
 }

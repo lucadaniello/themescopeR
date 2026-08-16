@@ -1,3 +1,20 @@
+# themescopeR 0.1.1
+
+Changes made in response to the CRAN review of 0.1.0.
+
+* `themescope_cache_dir()` no longer creates anything: it reports where models
+  would be cached, and gained a `create` argument (default `FALSE`). The cache
+  directory is created only when a model is actually downloaded.
+* `ts_download_model()` and `ts_model_path()` take `model_dir = NULL` instead of
+  defaulting to a path under the user's home filespace. Pass a directory of your
+  own, for instance `tempdir()`, to keep a download inside the session.
+* New `ts_clear_cache()` deletes the downloaded models and the cache directory,
+  so everything the package stores on disk can be removed again.
+* The first download reports where it is caching.
+* Examples no longer use `\dontrun{}`. Those that need an internet connection
+  use `\donttest{}` and fail gracefully, the Shiny launcher is guarded by
+  `if (interactive())`, and every example that writes does so in `tempdir()`.
+
 # themescopeR 0.1.0
 
 First release.

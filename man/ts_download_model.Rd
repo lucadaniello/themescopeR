@@ -7,7 +7,7 @@
 ts_download_model(
   language,
   treebank = NULL,
-  model_dir = themescope_cache_dir(),
+  model_dir = NULL,
   overwrite = FALSE
 )
 }
@@ -18,7 +18,10 @@ ts_download_model(
 \item{treebank}{Optional treebank name (e.g. \code{"EWT"}, \code{"ISDT"}). If \code{NULL},
 the first model listed for the language is used.}
 
-\item{model_dir}{Cache directory (default \code{\link[=themescope_cache_dir]{themescope_cache_dir()}}).}
+\item{model_dir}{Directory to download into. If \code{NULL} (default) the model is
+cached in \code{\link[=themescope_cache_dir]{themescope_cache_dir()}}, which is created at that point and only
+then. Pass a path of your own (for instance \code{tempdir()}) to keep the
+download inside the current session.}
 
 \item{overwrite}{Logical. Re-download even if cached (default \code{FALSE}).}
 }
@@ -45,9 +48,10 @@ pages, use \code{\link[=ts_list_models]{ts_list_models()}} (whose returned data 
 \url{https://github.com/massimoaria/tall.language.models}.
 }
 \examples{
-\dontrun{
-path <- ts_download_model("english")
-path <- ts_download_model("italian", treebank = "ISDT")
+\donttest{
+# Downloaded into the session temporary directory, so nothing persists
+path <- try(ts_download_model("english", model_dir = tempdir()), silent = TRUE)
+if (!inherits(path, "try-error")) basename(path)
 }
 
 }
@@ -56,5 +60,6 @@ Aria, M. \emph{tall.language.models}: updated UDPipe models and lexicons for
 TALL. \url{https://github.com/massimoaria/tall.language.models}
 }
 \seealso{
-\code{\link[=ts_list_models]{ts_list_models()}} for the full catalogue (descriptions and links).
+\code{\link[=ts_list_models]{ts_list_models()}} for the full catalogue (descriptions and links),
+\code{\link[=ts_clear_cache]{ts_clear_cache()}} to delete the downloaded models.
 }

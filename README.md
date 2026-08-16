@@ -114,11 +114,20 @@ maintained for [TALL](https://github.com/massimoaria/tall.language.models).
 ```r
 ts_list_models()              # available languages / treebanks
 ts_download_model("italian")  # download + cache (no-op if already cached)
-themescope_cache_dir()        # where models are stored
+themescope_cache_dir()        # where models would be stored (creates nothing)
+ts_clear_cache()              # delete everything that was cached
 ```
 
 The cache lives in `tools::R_user_dir("themescopeR", "cache")`; override it with
-`options(themescopeR.model_dir = "/your/path")`.
+`options(themescopeR.model_dir = "/your/path")`, or pass `model_dir` to a single
+call (`ts_download_model("italian", model_dir = tempdir())`) to keep a download
+inside the session.
+
+The directory is created only when a model is actually downloaded, that is when
+you call `ts_download_model()` or hand a language name to `preprocess_texts()`.
+Asking where the cache is creates nothing, and `ts_clear_cache()` removes the
+models and the directory again. Nothing else in the package writes outside the
+session temporary directory.
 
 ---
 
@@ -331,7 +340,7 @@ functions.
 |---|---|
 | `read_collection()` | Import raw documents (single file or zip of many) into a tidy data frame |
 | `preprocess_texts()` | udpipe annotation; returns the **full** udpipe data frame |
-| `ts_download_model()`, `ts_list_models()`, `ts_model_path()` | Manage cached language models |
+| `ts_download_model()`, `ts_list_models()`, `ts_model_path()`, `ts_clear_cache()` | Manage cached language models |
 | `build_vocab()` | Vocabulary as a data frame (`term`, `freq`, `upos`) |
 | `build_cooccurrence_matrix()` | Sentence/document co-occurrence + chosen `normalization` |
 | `normalize_cooccurrence()`, `compute_association_strength()` | Similarity measures (association, jaccard, salton, inclusion, equivalence) |
