@@ -4,6 +4,16 @@
 
 # themescopeR
 
+<!-- badges: start -->
+[![JIS](https://img.shields.io/badge/JIS-10.1177%2F01655515261454276-brightgreen)](https://doi.org/10.1177/01655515261454276)
+[![Project Status: Active](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+[![R-CMD-check](https://github.com/lucadaniello/themescopeR/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/lucadaniello/themescopeR/actions/workflows/R-CMD-check.yaml)
+[![CRAN status](https://www.r-pkg.org/badges/version/themescopeR)](https://CRAN.R-project.org/package=themescopeR)
+[![CRAN checks](https://badges.cranchecks.info/worst/themescopeR.svg)](https://cran.r-project.org/web/checks/check_results_themescopeR.html)
+[![Downloads](https://cranlogs.r-pkg.org/badges/grand-total/themescopeR)](https://cran.r-project.org/package=themescopeR)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](https://opensource.org/licenses/MIT)
+<!-- badges: end -->
+
 **Social Representation Analysis via Semantic Network Mapping**
 
 `themescopeR` implements the **ThemeScope** framework for detecting and
@@ -49,6 +59,14 @@ In R, `citation("themescopeR")` prints the same reference.
 ---
 
 ## Installation
+
+Install the released version from CRAN:
+
+```r
+install.packages("themescopeR")
+```
+
+Or the development version from GitHub:
 
 ```r
 # install.packages("remotes")
